@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,7 +32,7 @@ class AppTheme {
         ),
         iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.cardBackground,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -76,8 +77,8 @@ class AppTheme {
           return AppColors.disabled;
         }),
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: const {
           TargetPlatform.android: CupertinoPageTransitionsBuilder(),
         },
       ),

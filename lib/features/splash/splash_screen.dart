@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_gradients.dart';
-import '../../app/theme/app_text_styles.dart';
-import '../../core/widgets/audio_waveform.dart';
+import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_gradients.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/widgets/audio_waveform.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});

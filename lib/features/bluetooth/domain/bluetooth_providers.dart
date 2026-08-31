@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/bluetooth_device_model.dart';
+import 'bluetooth_device_model.dart'
+    as model
+    show BluetoothDeviceModel, BluetoothDeviceType, DeviceConnectionState;
 
 // ──────────────────────────────────────────────
 // Bluetooth Adapter State
@@ -24,56 +26,52 @@ final isScanningProvider = StreamProvider<bool>((ref) {
 // Discovered Devices
 // ──────────────────────────────────────────────
 
-final discoveredDevicesProvider =
-    StateNotifierProvider<DiscoveredDevicesNotifier, List<BluetoothDeviceModel>>(
-        (ref) {
+final discoveredDevicesProvider = StateNotifierProvider<
+    DiscoveredDevicesNotifier, List<model.BluetoothDeviceModel>>((ref) {
   return DiscoveredDevicesNotifier(ref);
 });
 
 class DiscoveredDevicesNotifier
-    extends StateNotifier<List<BluetoothDeviceModel>> {
-  DiscoveredDevicesNotifier(this._ref) : super([]);
+    extends StateNotifier<List<model.BluetoothDeviceModel>> {
+  DiscoveredDevicesNotifier(Ref ref) : super([]);
 
-  final Ref _ref;
   StreamSubscription<List<ScanResult>>? _scanSub;
 
   /// Start real Bluetooth scan.
   Future<void> startScan() async {
     state = []; // Clear previous results
 
-    // Stop any active scan first
     if (FlutterBluePlus.isScanningNow) {
       await FlutterBluePlus.stopScan();
     }
 
     _scanSub?.cancel();
     _scanSub = FlutterBluePlus.scanResults.listen((results) {
-      final updated = <BluetoothDeviceModel>[];
+      final updated = <model.BluetoothDeviceModel>[];
       for (final result in results) {
         final type = _resolveDeviceType(result);
-        // Only surface audio devices and unknowns
         final existing = state.firstWhere(
           (d) => d.id == result.device.remoteId.str,
-          orElse: () => BluetoothDeviceModel(
+          orElse: () => model.BluetoothDeviceModel(
             id: result.device.remoteId.str,
             name: result.device.platformName.isNotEmpty
                 ? result.device.platformName
                 : 'Unknown Device',
             type: type,
-            connectionState: DeviceConnectionState.discovering,
+            connectionState: model.DeviceConnectionState.discovering,
             rssi: result.rssi,
           ),
         );
 
-        // Transition discovering → available once we have a name
         final readyState = result.device.platformName.isNotEmpty
-            ? DeviceConnectionState.available
-            : DeviceConnectionState.discovering;
+            ? model.DeviceConnectionState.available
+            : model.DeviceConnectionState.discovering;
 
         updated.add(existing.copyWith(
-          connectionState: existing.connectionState == DeviceConnectionState.connected
-              ? DeviceConnectionState.connected
-              : readyState,
+          connectionState:
+              existing.connectionState == model.DeviceConnectionState.connected
+                  ? model.DeviceConnectionState.connected
+                  : readyState,
           rssi: result.rssi,
         ));
       }
@@ -94,52 +92,35 @@ class DiscoveredDevicesNotifier
   }
 
   /// Update connection state for a specific device.
-  void updateDeviceState(String id, DeviceConnectionState connectionState) {
+  void updateDeviceState(
+      String id, model.DeviceConnectionState connectionState) {
     state = [
       for (final d in state)
         if (d.id == id) d.copyWith(connectionState: connectionState) else d,
     ];
   }
 
-  BluetoothDeviceType _resolveDeviceType(ScanResult result) {
-    // Use the device class from advertisement data
-    final deviceClass = result.advertisementData.manufacturerData;
-    // flutter_blue_plus exposes serviceUuids for BLE; for classic BT devices
-    // we use the device type enum
-    switch (result.device.type) {
-      case BluetoothDeviceType.classic:
-      case BluetoothDeviceType.dual:
-        // For classic BT audio, try to infer from name patterns only as fallback
-        // The primary source should be the Android BluetoothClass
-        return _inferFromAdvertisement(result);
-      case BluetoothDeviceType.le:
-        return _inferFromAdvertisement(result);
-      default:
-        return BluetoothDeviceType.unknown;
-    }
+  model.BluetoothDeviceType _resolveDeviceType(ScanResult result) {
+    return _inferFromAdvertisement(result);
   }
 
-  BluetoothDeviceType _inferFromAdvertisement(ScanResult result) {
-    // Check advertised service UUIDs for standard audio profiles
+  model.BluetoothDeviceType _inferFromAdvertisement(ScanResult result) {
     final uuids = result.advertisementData.serviceUuids
         .map((u) => u.toString().toLowerCase())
         .toList();
 
-    // A2DP sink: 0000110b  A2DP source: 0000110a
-    // Hands-free: 0000111e  Headset: 00001108
-    // Hearing aid: 0000fdf0
+    // A2DP: 0000110b / 0000110a
     if (uuids.any((u) => u.contains('110b') || u.contains('110a'))) {
-      // Has A2DP — check if headphones or speaker by other signals
-      return BluetoothDeviceType.headphones;
+      return model.BluetoothDeviceType.headphones;
     }
+    // Hands-free: 0000111e / Headset: 00001108
     if (uuids.any((u) => u.contains('111e') || u.contains('1108'))) {
-      return BluetoothDeviceType.earbuds;
+      return model.BluetoothDeviceType.earbuds;
     }
-    // Generic audio device
     if (result.advertisementData.serviceUuids.isNotEmpty) {
-      return BluetoothDeviceType.audioDevice;
+      return model.BluetoothDeviceType.audioDevice;
     }
-    return BluetoothDeviceType.unknown;
+    return model.BluetoothDeviceType.unknown;
   }
 
   @override
@@ -154,21 +135,21 @@ class DiscoveredDevicesNotifier
 // Connected Devices
 // ──────────────────────────────────────────────
 
-final connectedDevicesProvider =
-    StateNotifierProvider<ConnectedDevicesNotifier, List<BluetoothDeviceModel>>(
-        (ref) {
+final connectedDevicesProvider = StateNotifierProvider<ConnectedDevicesNotifier,
+    List<model.BluetoothDeviceModel>>((ref) {
   return ConnectedDevicesNotifier();
 });
 
 class ConnectedDevicesNotifier
-    extends StateNotifier<List<BluetoothDeviceModel>> {
+    extends StateNotifier<List<model.BluetoothDeviceModel>> {
   ConnectedDevicesNotifier() : super([]);
 
-  void addDevice(BluetoothDeviceModel device) {
+  void addDevice(model.BluetoothDeviceModel device) {
     if (!state.any((d) => d.id == device.id)) {
       state = [
         ...state,
-        device.copyWith(connectionState: DeviceConnectionState.connected),
+        device.copyWith(
+            connectionState: model.DeviceConnectionState.connected),
       ];
     }
   }
@@ -186,16 +167,8 @@ class ConnectedDevicesNotifier
 }
 
 // ──────────────────────────────────────────────
-// Connecting (in-progress)
+// Connecting in-progress set
 // ──────────────────────────────────────────────
 
 final connectingDeviceIdsProvider =
     StateProvider<Set<String>>((ref) => {});
-
-// ──────────────────────────────────────────────
-// Active connection subscriptions map
-// ──────────────────────────────────────────────
-
-final deviceConnectionSubsProvider =
-    StateProvider<Map<String, StreamSubscription<BluetoothConnectionState>>>(
-        (ref) => {});

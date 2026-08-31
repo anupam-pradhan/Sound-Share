@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../audio_sharing/domain/audio_sharing_service.dart';
-import '../../audio_sharing/data/android_audio_sharing_service.dart';
-import '../bluetooth/domain/bluetooth_providers.dart';
-import '../bluetooth/domain/bluetooth_device_model.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/features/audio_sharing/data/android_audio_sharing_service.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart'
+    as model show BluetoothDeviceModel;
 
 // ──────────────────────────────────────────────
 // Audio Sharing Service Instance
@@ -26,24 +27,19 @@ final audioSharingStateProvider =
 
 class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
   AudioSharingNotifier(this._ref) : super(AudioSharingState.unavailable) {
-    // Watch connected devices — update sharing availability
-    _ref.listen(connectedDevicesProvider, (_, devices) {
-      _onConnectedDevicesChanged(devices);
-    });
+    _ref.listen(connectedDevicesProvider,
+        (_, devices) => _onConnectedDevicesChanged(devices));
   }
 
   final Ref _ref;
   StreamSubscription<bool>? _sharingSub;
 
-  void _onConnectedDevicesChanged(List<BluetoothDeviceModel> devices) {
+  void _onConnectedDevicesChanged(
+      List<model.BluetoothDeviceModel> devices) {
     if (state == AudioSharingState.sharing ||
         state == AudioSharingState.starting ||
         state == AudioSharingState.stopping) {
-      // Don't interrupt active/transitioning state
-      if (devices.isEmpty) {
-        // Device disconnected while sharing — stop
-        stopSharing();
-      }
+      if (devices.isEmpty) stopSharing();
       return;
     }
     if (devices.isNotEmpty) {
@@ -60,7 +56,6 @@ class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
     state = AudioSharingState.starting;
 
     final service = _ref.read(audioSharingServiceProvider);
-
     try {
       final capability = await service.canShareAudio();
       if (!capability.canShare) {
@@ -127,7 +122,7 @@ class SharingDurationNotifier extends StateNotifier<Duration> {
     _ref.listen(audioSharingStateProvider, (_, next) {
       if (next == AudioSharingState.sharing) {
         _start();
-      } else if (next != AudioSharingState.sharing) {
+      } else {
         _stop();
       }
     });

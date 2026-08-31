@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_gradients.dart';
-import '../../../app/theme/app_text_styles.dart';
-import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_gradients.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
 
 /// Full-width gradient Share Audio button with all state transitions.
 class ShareAudioButton extends StatefulWidget {

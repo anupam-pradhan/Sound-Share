@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_text_styles.dart';
-import '../../../core/widgets/animated_widgets.dart';
-import '../../../core/widgets/bluetooth_device_icon.dart';
-import '../../../features/bluetooth/domain/bluetooth_device_model.dart';
+import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/widgets/animated_widgets.dart';
+import 'package:soundshare/core/widgets/bluetooth_device_icon.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 
 /// Card showing the user's currently active audio device.
 class ConnectedAudioCard extends StatelessWidget {

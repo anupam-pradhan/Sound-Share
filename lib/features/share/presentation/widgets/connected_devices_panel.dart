@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_text_styles.dart';
-import '../../../core/widgets/audio_flow_animation.dart';
-import '../../../features/bluetooth/domain/bluetooth_device_model.dart';
-import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/widgets/audio_flow_animation.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
 
 /// Panel showing connected device count and audio flow animation.
 class ConnectedDevicesPanel extends StatelessWidget {
@@ -74,7 +74,7 @@ class ConnectedDevicesPanel extends StatelessWidget {
         key: const ValueKey('sharing'),
         children: [
           Text(
-            '${_count} ${_count == 1 ? 'device' : 'devices'} connected',
+            ' ${_count == 1 ? 'device' : 'devices'} connected',
             style: AppTextStyles.headingSmall.copyWith(
               color: AppColors.purple,
             ),
@@ -108,7 +108,7 @@ class ConnectedDevicesPanel extends StatelessWidget {
         key: const ValueKey('ready'),
         children: [
           Text(
-            '${_count} ${_count == 1 ? 'device' : 'devices'} connected',
+            ' ${_count == 1 ? 'device' : 'devices'} connected',
             style: AppTextStyles.headingSmall,
           ),
           const SizedBox(height: 3),

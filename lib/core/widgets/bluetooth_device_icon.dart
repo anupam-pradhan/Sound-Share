@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_gradients.dart';
 import '../../features/bluetooth/domain/bluetooth_device_model.dart';
 
 /// Reusable widget that displays the correct vector icon for a Bluetooth device type.

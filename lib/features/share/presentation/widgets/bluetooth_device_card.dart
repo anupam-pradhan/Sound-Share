@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_text_styles.dart';
-import '../../../core/widgets/bluetooth_device_icon.dart';
-import '../../../core/widgets/animated_widgets.dart';
-import '../../../features/bluetooth/domain/bluetooth_device_model.dart';
-import '../../../features/bluetooth/domain/bluetooth_providers.dart';
-import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
+import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/widgets/bluetooth_device_icon.dart';
+import 'package:soundshare/core/widgets/animated_widgets.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 
 /// Card for a single discovered Bluetooth device with connect/disconnect.
 class BluetoothDeviceCard extends ConsumerStatefulWidget {
@@ -107,7 +108,7 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
       setState(() => _showSuccess = true);
       await Future.delayed(const Duration(milliseconds: 1200));
       if (mounted) setState(() => _showSuccess = false);
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       if (!mounted) return;
       discoveredNotifier.updateDeviceState(
           widget.device.id, DeviceConnectionState.failed);
