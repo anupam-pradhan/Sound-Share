@@ -9,6 +9,7 @@ import '../../../app/theme/app_text_styles.dart';
 import '../../../features/bluetooth/domain/bluetooth_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
+import 'widgets/about_soundshare_sheet.dart';
 
 // ──────────────────────────────────────────────
 // Preferences providers
@@ -193,15 +194,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     // About
                     _SettingsCard(
                       children: [
-                        _SettingsRow(
-                          icon: Icons.info_outline_rounded,
-                          iconColor: AppColors.textMuted,
-                          label: 'About SoundShare',
-                          trailing: Text(
-                            _version.isNotEmpty
-                                ? 'Version $_version'
-                                : 'Version 1.0.0',
-                            style: AppTextStyles.labelMedium,
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => AboutSoundShareSheet.show(
+                            context,
+                            version: _version,
+                          ),
+                          child: _SettingsRow(
+                            icon: Icons.info_outline_rounded,
+                            iconColor: AppColors.purple,
+                            label: 'About SoundShare',
+                            subtitle: 'Crafted by Anupam Pradhan • No Ads',
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _version.isNotEmpty
+                                      ? 'v$_version'
+                                      : 'v1.0.0',
+                                  style: AppTextStyles.labelMedium.copyWith(
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: AppColors.textMuted,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -249,11 +271,11 @@ class _SettingsCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.cardBorder),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.cardShadow,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -287,7 +309,7 @@ class _SettingsRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 18, color: iconColor),

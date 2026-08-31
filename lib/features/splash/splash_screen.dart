@@ -72,25 +72,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await _waveController.forward();
     if (!mounted) return;
 
-    // Step 3: Request permissions while splash shows
-    await _requestPermissions();
+    // Step 3: Check if permissions are already granted
+    final btScanStatus = await Permission.bluetoothScan.status;
+    final btConnectStatus = await Permission.bluetoothConnect.status;
+
     if (!mounted) return;
 
-    // Step 4: Small pause so user sees the full splash
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-
-    // Step 5: Navigate to main screen
-    context.go('/share');
+    if (btScanStatus.isGranted && btConnectStatus.isGranted) {
+      context.go('/share');
+    } else {
+      context.go('/permissions');
+    }
   }
 
   Future<void> _requestPermissions() async {
-    // Request Bluetooth permissions based on Android version
+    // Request Bluetooth and notification permissions
     await [
       Permission.bluetooth,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
       Permission.bluetoothAdvertise,
+      Permission.notification,
     ].request();
   }
 

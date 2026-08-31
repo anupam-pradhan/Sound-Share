@@ -19,9 +19,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
-    <!-- Foreground service for audio sharing -->
+    <!-- Foreground service and notifications for audio sharing -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Network state (for peer sharing) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

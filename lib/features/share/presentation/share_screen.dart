@@ -3,6 +3,8 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soundshare/core/constants/app_assets.dart';
+import 'package:soundshare/core/widgets/skeleton_loader.dart';
+import 'package:soundshare/core/services/app_update_service.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/animated_widgets.dart';
@@ -258,8 +260,10 @@ class _BluetoothDevicesSection extends StatelessWidget {
             ),
         ],
 
-        if (isScanning && devices.isEmpty)
-          const _ScanningPlaceholder(),
+        if (isScanning) ...[
+          const BluetoothDeviceSkeletonCard(),
+          const BluetoothDeviceSkeletonCard(),
+        ],
       ],
     );
   }

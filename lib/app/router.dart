@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:soundshare/features/splash/splash_screen.dart';
+import 'package:soundshare/features/permissions/permission_screen.dart';
 import 'package:soundshare/features/share/presentation/share_screen.dart';
 import 'package:soundshare/features/settings/presentation/settings_screen.dart';
 import 'package:soundshare/app/navigation/main_shell.dart';
@@ -11,6 +12,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (context, state) => const SplashScreen(),
+    ),
+
+    // Permissions onboarding
+    GoRoute(
+      path: '/permissions',
+      builder: (context, state) => const PermissionScreen(),
     ),
 
     // Main shell with bottom nav
