@@ -131,7 +131,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.purple.withOpacity(0.25),
+                                  color: AppColors.purple.withValues(alpha: 0.25),
                                   blurRadius: 30,
                                   offset: const Offset(0, 12),
                                 ),
@@ -172,52 +172,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 },
               ),
 
-              const SizedBox(height: 48),
+              const SizedBox(height: 36),
 
-              // Waveform
+              // Animated Sound Wave
               AnimatedBuilder(
                 animation: _waveController,
                 builder: (_, __) {
                   return Opacity(
                     opacity: _waveOpacity.value,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 48),
                       child: AudioWaveform(
-                        isActive: _waveOpacity.value > 0.5,
-                        isSharing: false,
-                        height: 48,
-                        barCount: 30,
-                        color: AppColors.purple.withOpacity(0.6),
+                        isActive: true,
+                        isSharing: true,
+                        height: 56,
+                        barCount: 36,
+                        color: AppColors.purple.withValues(alpha: 0.75),
                       ),
                     ),
                   );
                 },
               ),
 
-              const Spacer(flex: 2),
-
-              // Loading indicator
-              AnimatedBuilder(
-                animation: _waveController,
-                builder: (_, __) {
-                  return Opacity(
-                    opacity: _waveOpacity.value,
-                    child: const Padding(
-                      padding: EdgeInsets.only(bottom: 40),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.purple,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              const Spacer(flex: 3),
             ],
           ),
         ),
