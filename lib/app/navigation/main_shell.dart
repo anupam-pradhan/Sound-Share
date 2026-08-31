@@ -3,21 +3,31 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/navigation/app_back_handler.dart';
+import 'package:soundshare/core/utils/app_haptics.dart';
 
 /// Bottom navigation shell wrapping Share and Settings tabs.
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
+  void _onNavTap(int index) {
+    AppHaptics.selection();
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: _SoundShareBottomNav(
-        currentIndex: navigationShell.currentIndex,
-        onTap: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
+    return AppBackHandler(
+      navigationShell: navigationShell,
+      child: Scaffold(
+        body: navigationShell,
+        bottomNavigationBar: _SoundShareBottomNav(
+          currentIndex: navigationShell.currentIndex,
+          onTap: _onNavTap,
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../../app/theme/app_text_styles.dart';
 import '../../../features/bluetooth/domain/bluetooth_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/core/utils/app_haptics.dart';
 import 'widgets/about_soundshare_sheet.dart';
 
 // ──────────────────────────────────────────────
@@ -89,7 +90,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                     color: AppColors.textPrimary,
-                    onPressed: () => context.go('/share'),
+                    onPressed: () {
+                      AppHaptics.light();
+                      context.go('/share');
+                    },
                   ),
                   Text('Settings', style: AppTextStyles.headingLarge),
                 ],

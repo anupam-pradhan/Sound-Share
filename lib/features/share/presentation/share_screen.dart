@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soundshare/core/constants/app_assets.dart';
 import 'package:soundshare/core/widgets/skeleton_loader.dart';
-import 'package:soundshare/core/services/app_update_service.dart';
+import 'package:soundshare/core/utils/app_haptics.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/animated_widgets.dart';
@@ -169,7 +170,10 @@ class _AppHeader extends StatelessWidget {
             label: 'Settings',
             button: true,
             child: GestureDetector(
-              onTap: onSettings,
+              onTap: () {
+                AppHaptics.light();
+                onSettings();
+              },
               child: Container(
                 width: 38,
                 height: 38,
@@ -177,11 +181,11 @@ class _AppHeader extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.cardBorder),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: AppColors.cardShadow,
                       blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
@@ -225,7 +229,10 @@ class _BluetoothDevicesSection extends StatelessWidget {
             Text('Bluetooth devices', style: AppTextStyles.headingSmall),
             const Spacer(),
             GestureDetector(
-              onTap: onScan,
+              onTap: () {
+                AppHaptics.light();
+                onScan();
+              },
               child: Row(
                 children: [
                   if (isScanning)
