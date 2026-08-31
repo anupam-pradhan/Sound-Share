@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soundshare/features/splash/splash_screen.dart';
 import 'package:soundshare/features/share/presentation/share_screen.dart';
