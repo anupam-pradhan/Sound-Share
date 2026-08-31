@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:soundshare/core/constants/app_assets.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
@@ -139,7 +140,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(24),
                               child: Image.asset(
-                                'soundshare-logo.png',
+                                AppAssets.logo,
                                 fit: BoxFit.contain,
                               ),
                             ),

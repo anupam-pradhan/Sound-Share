@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soundshare/core/constants/app_assets.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/animated_widgets.dart';
@@ -142,7 +143,7 @@ class _AppHeader extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Image.asset(
-              'soundshare-logo.png',
+              AppAssets.logo,
               width: 40,
               height: 40,
               fit: BoxFit.contain,
