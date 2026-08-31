@@ -39,13 +39,15 @@ class AndroidAudioSharingService implements AudioSharingService {
   @override
   Future<void> startSharing() async {
     if (_isCurrentlySharing) return;
-    // On Android, direct dual-Bluetooth-A2DP is only available on
-    // Android 12+ with specific hardware. We surface the real state.
-    // The actual routing is best-effort via AudioManager.
     _isCurrentlySharing = true;
     _sharingController.add(true);
 
-    // Emit simulated latency updates (0ms on local routing)
+    try {
+      await _channel.invokeMethod('startForegroundService');
+    } catch (_) {
+      // Ignore if foreground service fails
+    }
+
     _emitLatency(0);
   }
 
@@ -55,6 +57,12 @@ class AndroidAudioSharingService implements AudioSharingService {
     _isCurrentlySharing = false;
     _sharingController.add(false);
     _latencyController.add(0);
+
+    try {
+      await _channel.invokeMethod('stopForegroundService');
+    } catch (_) {
+      // Ignore stop errors
+    }
   }
 
   void _emitLatency(double ms) {

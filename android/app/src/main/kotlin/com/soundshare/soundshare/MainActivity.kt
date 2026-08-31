@@ -29,6 +29,14 @@ class MainActivity : FlutterActivity() {
                     "getActiveOutputDevice" -> {
                         result.success(getActiveOutputDevice())
                     }
+                    "startForegroundService" -> {
+                        AudioShareForegroundService.startService(this)
+                        result.success(true)
+                    }
+                    "stopForegroundService" -> {
+                        AudioShareForegroundService.stopService(this)
+                        result.success(true)
+                    }
                     else -> result.notImplemented()
                 }
             }
