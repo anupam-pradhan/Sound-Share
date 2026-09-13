@@ -10,14 +10,12 @@ class AppTextStyles {
   static TextStyle get displayLarge => GoogleFonts.outfit(
         fontSize: 28,
         fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
         letterSpacing: -0.5,
       );
 
   static TextStyle get displayMedium => GoogleFonts.outfit(
         fontSize: 22,
         fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
         letterSpacing: -0.3,
       );
 
@@ -25,26 +23,22 @@ class AppTextStyles {
   static TextStyle get headingLarge => GoogleFonts.outfit(
         fontSize: 18,
         fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
       );
 
   static TextStyle get headingMedium => GoogleFonts.outfit(
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
       );
 
   static TextStyle get headingSmall => GoogleFonts.outfit(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
       );
 
   // Body text
   static TextStyle get bodyLarge => GoogleFonts.inter(
         fontSize: 15,
         fontWeight: FontWeight.w400,
-        color: AppColors.textPrimary,
       );
 
   static TextStyle get bodyMedium => GoogleFonts.inter(
@@ -63,7 +57,6 @@ class AppTextStyles {
   static TextStyle get labelLarge => GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: AppColors.textPrimary,
       );
 
   static TextStyle get labelMedium => GoogleFonts.inter(

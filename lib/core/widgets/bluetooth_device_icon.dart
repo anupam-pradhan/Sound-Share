@@ -34,7 +34,7 @@ class BluetoothDeviceIcon extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(
             color: isConnected
-                ? AppColors.success.withOpacity(0.3)
+                ? AppColors.success.withValues(alpha: 0.3)
                 : AppColors.cardBorder,
             width: 1,
           ),
@@ -61,6 +61,8 @@ class BluetoothDeviceIcon extends StatelessWidget {
         return 'Car audio';
       case BluetoothDeviceType.audioDevice:
         return 'Audio device';
+      case BluetoothDeviceType.phone:
+        return 'Phone';
       case BluetoothDeviceType.unknown:
         return 'Bluetooth device';
     }
@@ -77,6 +79,8 @@ class BluetoothDeviceIcon extends StatelessWidget {
         return _SpeakerPainter(color: color);
       case BluetoothDeviceType.carAudio:
         return _CarAudioPainter(color: color);
+      case BluetoothDeviceType.phone:
+        return _PhonePainter(color: color);
       case BluetoothDeviceType.audioDevice:
       case BluetoothDeviceType.unknown:
         return _BluetoothAudioPainter(color: color);
@@ -102,7 +106,7 @@ class _EarbudsPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     final fill = Paint()
-      ..color = color.withOpacity(0.15)
+      ..color = color.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
 
     final w = size.width;
@@ -207,8 +211,8 @@ class _SpeakerPainter extends CustomPainter {
 
     // Woofer circle
     canvas.drawCircle(Offset(w * 0.5, h * 0.55), w * 0.2, paint);
-    canvas.drawCircle(Offset(w * 0.5, h * 0.55), w * 0.08,
-        paint..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        Offset(w * 0.5, h * 0.55), w * 0.08, paint..style = PaintingStyle.fill);
 
     paint
       ..style = PaintingStyle.stroke
@@ -304,4 +308,59 @@ class _BluetoothAudioPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BluetoothAudioPainter old) => old.color != color;
+}
+
+// ──────────────────────────────────────────────
+// Phone Painter
+// ──────────────────────────────────────────────
+
+class _PhonePainter extends CustomPainter {
+  _PhonePainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.08
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fill = Paint()
+      ..color = color.withValues(alpha: 0.12)
+      ..style = PaintingStyle.fill;
+
+    final w = size.width;
+    final h = size.height;
+
+    // Phone body (rounded rect)
+    final phoneRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.22, h * 0.1, w * 0.56, h * 0.8),
+      Radius.circular(w * 0.12),
+    );
+    canvas.drawRRect(phoneRect, fill);
+    canvas.drawRRect(phoneRect, paint);
+
+    // Speaker / Notch line at top
+    final notchPaint = Paint()
+      ..color = color
+      ..strokeWidth = size.width * 0.07
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(w * 0.42, h * 0.2),
+      Offset(w * 0.58, h * 0.2),
+      notchPaint,
+    );
+
+    // Home indicator dot at bottom
+    canvas.drawCircle(
+      Offset(w * 0.5, h * 0.78),
+      w * 0.045,
+      paint..style = PaintingStyle.fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_PhonePainter old) => old.color != color;
 }

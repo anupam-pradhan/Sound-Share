@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoundShare - Multi-Device Bluetooth Audio Sharing & 3D Spatial Sound</title>
+  <meta name="description" content="SoundShare is the ultimate Android app to connect and share audio with multiple Bluetooth headphones and speakers simultaneously in 3D spatial sound.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7A5AF8;
+      --primary-light: #9E77ED;
+      --primary-glow: rgba(122, 90, 248, 0.35);
+      --secondary: #53B1FD;
+      --secondary-glow: rgba(83, 177, 253, 0.25);
+      --bg: #07060D;
+      --card-bg: #0F0E18;
+      --card-inner: #151322;
+      --card-border: #222033;
+      --card-border-glow: rgba(122, 90, 248, 0.4);
+      --text-main: #F4F3FB;
+      --text-muted: #8C8A9E;
+      --green: #12B76A;
+      --green-glow: rgba(18, 183, 106, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 50% -10%, rgba(122, 90, 248, 0.2), transparent 50%),
+        radial-gradient(circle at 90% 40%, rgba(83, 177, 253, 0.1), transparent 40%),
+        radial-gradient(circle at 10% 80%, rgba(122, 90, 248, 0.12), transparent 45%);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navigation Bar */
+    nav {
+      position: sticky;
+      top: 16px;
+      z-index: 100;
+      margin: 16px auto 0;
+      max-width: 1100px;
+      padding: 0 24px;
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 14, 24, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 100px;
+      padding: 12px 24px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 0 14px var(--primary-glow);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover, .nav-links a.active {
+      color: #FFFFFF;
+    }
+
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--primary), #4B65F6);
+      color: #FFFFFF;
+      padding: 9px 18px;
+      border-radius: 100px;
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 700;
+      box-shadow: 0 4px 16px var(--primary-glow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 22px var(--primary-glow);
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 80px 0 60px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(122, 90, 248, 0.12);
+      border: 1px solid rgba(122, 90, 248, 0.3);
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary-light);
+      margin-bottom: 24px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .hero h1 {
+      font-size: 52px;
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      background: linear-gradient(180deg, #FFFFFF 30%, #C4C1DD 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero h1 span.gradient-text {
+      background: linear-gradient(135deg, #B4A1FF 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p.subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn-large {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--primary), #4B65F6);
+      color: #FFFFFF;
+      padding: 14px 28px;
+      border-radius: 16px;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 8px 28px var(--primary-glow);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-large:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 36px var(--primary-glow);
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 14px 24px;
+      border-radius: 16px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--primary-light);
+      background: var(--card-inner);
+    }
+
+    /* Feature Grid */
+    .section-title {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .section-title h2 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin-bottom: 10px;
+    }
+
+    .section-title p {
+      color: var(--text-muted);
+      font-size: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 90px;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 32px 28px;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--card-border-glow);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(122, 90, 248, 0.12);
+      border: 1px solid rgba(122, 90, 248, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: var(--primary-light);
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #FFFFFF;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+
+    /* Privacy Policy Section Container */
+    #privacy {
+      padding-top: 60px;
+      margin-bottom: 80px;
+    }
+
+    .privacy-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 48px 40px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    .privacy-header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+
+    .privacy-header h2 {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .privacy-meta {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    .privacy-section {
+      margin-bottom: 32px;
+    }
+
+    .privacy-section h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .num-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(122, 90, 248, 0.15);
+      color: var(--primary-light);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .privacy-section p {
+      color: #C8C5DC;
+      font-size: 15px;
+      line-height: 1.65;
+      margin-bottom: 14px;
+    }
+
+    .permission-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0;
+      background: var(--card-inner);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+
+    .permission-table th, .permission-table td {
+      padding: 14px 18px;
+      text-align: left;
+      font-size: 13.5px;
+    }
+
+    .permission-table th {
+      background: #181628;
+      color: #FFFFFF;
+      font-weight: 700;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .permission-table td {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #C8C5DC;
+    }
+
+    .permission-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .permission-tag {
+      font-family: monospace;
+      background: rgba(122, 90, 248, 0.15);
+      color: var(--primary-light);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .guarantee-card {
+      background: rgba(18, 183, 106, 0.08);
+      border: 1px solid rgba(18, 183, 106, 0.25);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .guarantee-card div.icon {
+      font-size: 24px;
+    }
+
+    .guarantee-card p {
+      color: #D4F7E4;
+      font-size: 14.5px;
+      margin-bottom: 0;
+      font-weight: 500;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13.5px;
+    }
+
+    footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 38px;
+      }
+      .nav-links {
+        display: none;
+      }
+      .privacy-box {
+        padding: 28px 20px;
+      }
+      .permission-table th, .permission-table td {
+        padding: 10px 12px;
+        font-size: 12.5px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="brand">
+        <div class="brand-icon">🎧</div>
+        <span>SoundShare</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#spatial">3D Spatial</a></li>
+        <li><a href="#privacy" class="active">Privacy Policy</a></li>
+      </ul>
+      <a href="#privacy" class="btn-cta">Privacy Policy</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero container">
+    <div class="hero-badge">
+      <span class="status-dot"></span>
+      Official Android Application
+    </div>
+    <h1>Share Audio Together in <br><span class="gradient-text">3D Spatial Sound</span></h1>
+    <p class="subtitle">
+      Connect and broadcast synchronized audio to multiple Bluetooth headphones and speakers simultaneously. Experience immersive 360° binaural sound with real-time head tracking.
+    </p>
+    <div class="hero-actions">
+      <a href="#features" class="btn-large">
+        <span>Explore Features</span> ➔
+      </a>
+      <a href="#privacy" class="btn-outline">
+        <span>View Privacy Policy</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Feature Grid -->
+  <section id="features" class="container">
+    <div class="section-title">
+      <h2>Engineered for Shared Listening</h2>
+      <p>Powerful Bluetooth multi-streaming, real-time spatial DSP, and privacy-first local processing.</p>
+    </div>
+
+    <div class="features-grid">
+      <!-- Feature 1 -->
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Multi-Bluetooth Audio Sharing</h3>
+        <p>Stream your music, movies, and podcasts simultaneously to 2 or more Bluetooth headphones and speakers with ultra-low latency synchronization.</p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div id="spatial" class="feature-card">
+        <div class="feature-icon">🌐</div>
+        <h3>3D Spatial Audio & Head Tracking</h3>
+        <p>Binaural 360° soundstage simulation that keeps virtual sound anchored in world space as you move your head. Includes interactive node dragging & auto-orbit scan.</p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature-card">
+        <div class="feature-icon">🎵</div>
+        <h3>BeatSync Haptic Rhythms</h3>
+        <p>Feel the bass, kicks, and drop transients through synchronized haptic vibrations directly in tune with your audio frequencies.</p>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="feature-card">
+        <div class="feature-icon">🎚️</div>
+        <h3>Independent Device Controls</h3>
+        <p>Adjust individual volume levels, distance, and immersion controls for each connected receiver so everyone enjoys their ideal sound balance.</p>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="feature-card">
+        <div class="feature-icon">🌗</div>
+        <h3>Daylight & Dark Studio Themes</h3>
+        <p>Fluid, state-of-the-art interface that seamlessly switches between clean Daylight Mode and deep obsidian Dark Studio Theme.</p>
+      </div>
+
+      <!-- Feature 6 -->
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>100% On-Device & Private</h3>
+        <p>Zero cloud accounts, zero tracking cookies, and zero audio storage. All audio analysis and routing happen ephemerally in RAM.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Complete Privacy Policy Section -->
+  <section id="privacy" class="container">
+    <div class="privacy-box">
+      <div class="privacy-header">
+        <h2>Privacy Policy for SoundShare</h2>
+        <div class="privacy-meta">
+          <strong>Effective Date:</strong> August 31, 2026 • <strong>Application ID:</strong> <code>com.soundshare.soundshare</code>
+        </div>
+      </div>
+
+      <div class="guarantee-card">
+        <div class="icon">🛡️</div>
+        <div>
+          <p><strong>Zero-Data Collection Guarantee:</strong> SoundShare does not collect, record, track, store, or sell any personal information or audio recordings. All operations occur purely on-device in volatile RAM memory.</p>
+        </div>
+      </div>
+
+      <!-- Section 1 -->
+      <div class="privacy-section">
+        <h3><span class="num-pill">1</span> Introduction & Overview</h3>
+        <p>SoundShare ("we", "our", or "the App") is dedicated to protecting your privacy. This Privacy Policy details how SoundShare handles data, explaining our architecture of zero data retention and our strict permission requirements.</p>
+      </div>
+
+      <!-- Section 2 -->
+      <div class="privacy-section">
+        <h3><span class="num-pill">2</span> Information We Do NOT Collect</h3>
+        <p>SoundShare is built on a privacy-by-design foundation:</p>
+        <ul>
+          <li style="color: #C8C5DC; margin-bottom: 8px;"><strong>No Personal Identifiers:</strong> We do not collect names, email addresses, phone numbers, contacts, or location data.</li>
+          <li style="color: #C8C5DC; margin-bottom: 8px;"><strong>No Audio Storage or Uploading:</strong> Audio analysis data is never saved to device storage or transmitted to any remote servers.</li>
+          <li style="color: #C8C5DC; margin-bottom: 8px;"><strong>No Tracking or Telemetry:</strong> There are no advertising SDKs, behavioral analytics, or third-party trackers embedded in the app.</li>
+        </ul>
+      </div>
+
+      <!-- Section 3 -->
+      <div class="privacy-section">
+        <h3><span class="num-pill">3</span> Android Permissions & Justifications</h3>
+        <p>To provide multi-device Bluetooth audio sharing and real-time haptic feedback, SoundShare requests the following specific permissions:</p>
+
+        <table class="permission-table">
+          <thead>
+            <tr>
+              <th>Permission</th>
+              <th>Usage & Justification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="permission-tag">BLUETOOTH_SCAN</span><br><span class="permission-tag">BLUETOOTH_CONNECT</span></td>
+              <td>Required to discover nearby Bluetooth headphones, earbuds, and speakers, and establish low-latency simultaneous audio streams.</td>
+            </tr>
+            <tr>
+              <td><span class="permission-tag">RECORD_AUDIO</span></td>
+              <td>Used exclusively for real-time transient and frequency detection (BeatSync). Audio buffers are processed purely in volatile RAM and immediately discarded. <strong>No audio is recorded or stored.</strong></td>
+            </tr>
+            <tr>
+              <td><span class="permission-tag">FOREGROUND_SERVICE_MEDIA_PLAYBACK</span></td>
+              <td>Ensures uninterrupted audio streaming and spatial sound processing when the screen is turned off or when switching apps.</td>
+            </tr>
+            <tr>
+              <td><span class="permission-tag">VIBRATE</span></td>
+              <td>Triggers synchronized tactile haptic vibrations corresponding to musical rhythms and bass notes.</td>
+            </tr>
+            <tr>
+              <td><span class="permission-tag">POST_NOTIFICATIONS</span></td>
+              <td>Displays media playback controls (Play, Pause, Disconnect) in your system notification bar.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 4 -->
+      <div class="privacy-section">
+        <h3><span class="num-pill">4</span> Third-Party Services & Advertising</h3>
+        <p>SoundShare contains <strong>zero third-party advertising SDKs, ad networks, or data brokers</strong>. All digital signal processing (DSP), binaural filters, and spatial audio calculations are executed locally on your device.</p>
+      </div>
+
+      <!-- Section 5 -->
+      <div class="privacy-section">
+        <h3><span class="num-pill">5</span> Children's Privacy</h3>
+        <p>SoundShare does not collect any personal information from anyone, including children under the age of 13. The app is fully compliant with COPPA and Google Play Families policy requirements.</p>
+      </div>
+
+      <!-- Section 6 -->
+      <div class="privacy-section">
+        <h3><span class="num-pill">6</span> Developer Contact</h3>
+        <p>If you have any questions or feedback regarding this Privacy Policy, please reach out through our official Google Play Store app listing page or GitHub repository.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="container">
+    <p>© 2026 SoundShare: Audio Sharing. All rights reserved.</p>
+    <p style="margin-top: 6px; font-size: 12.5px;">
+      <a href="#privacy">Privacy Policy</a> • <a href="privacy_policy.html">Direct Policy Link</a>
+    </p>
+  </footer>
+
+</body>
+</html>

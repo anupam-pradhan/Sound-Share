@@ -63,7 +63,7 @@ class _PulseIndicatorState extends State<PulseIndicator>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: widget.color.withOpacity(_opacity.value),
+                    color: widget.color.withValues(alpha: _opacity.value),
                     width: 2,
                   ),
                 ),
@@ -194,12 +194,11 @@ class _AnimatedStatusBadgeState extends State<AnimatedStatusBadge>
           height: widget.size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color:
-                widget.isActive ? widget.activeColor : widget.inactiveColor,
+            color: widget.isActive ? widget.activeColor : widget.inactiveColor,
             boxShadow: widget.isActive
                 ? [
                     BoxShadow(
-                      color: widget.activeColor.withOpacity(0.4),
+                      color: widget.activeColor.withValues(alpha: 0.4),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),

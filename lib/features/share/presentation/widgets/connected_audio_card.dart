@@ -5,30 +5,39 @@ import 'package:soundshare/core/widgets/animated_widgets.dart';
 import 'package:soundshare/core/widgets/bluetooth_device_icon.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 
-/// Card showing the user's currently active audio device.
+/// Card showing the user's currently active audio source device.
 class ConnectedAudioCard extends StatelessWidget {
   const ConnectedAudioCard({
     super.key,
+    this.deviceType = BluetoothDeviceType.phone,
     this.deviceName,
     this.batteryLevel,
     this.isConnected = false,
   });
 
+  final BluetoothDeviceType deviceType;
   final String? deviceName;
   final int? batteryLevel;
   final bool isConnected;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.cardShadow,
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : AppColors.cardShadow,
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -36,9 +45,9 @@ class ConnectedAudioCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Device icon
+          // Device icon (Mobile Phone)
           BluetoothDeviceIcon(
-            type: BluetoothDeviceType.earbuds,
+            type: deviceType,
             size: 28,
             isConnected: isConnected,
           ),
@@ -50,14 +59,14 @@ class ConnectedAudioCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Your audio', style: AppTextStyles.headingSmall),
+                Text('Audio Source', style: AppTextStyles.headingSmall),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     AnimatedStatusBadge(isActive: isConnected, size: 7),
                     const SizedBox(width: 5),
                     Text(
-                      isConnected ? 'Connected to' : 'Not connected',
+                      isConnected ? 'This Phone • Ready' : 'Not Connected',
                       style: AppTextStyles.statusSuccess.copyWith(
                         color: isConnected
                             ? AppColors.success
@@ -68,7 +77,7 @@ class ConnectedAudioCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  deviceName ?? 'No device connected',
+                  deviceName ?? 'This Phone (Media Audio)',
                   style: AppTextStyles.bodyLarge.copyWith(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -76,7 +85,9 @@ class ConnectedAudioCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isConnected ? 'You are listening' : 'Connect a Bluetooth device',
+                  isConnected
+                      ? 'Ready to share audio stream'
+                      : 'Turn on Bluetooth to share audio',
                   style: AppTextStyles.bodyMedium,
                 ),
               ],
@@ -109,9 +120,9 @@ class _BatteryChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withOpacity(0.12),
+        color: _color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _color.withOpacity(0.3)),
+        border: Border.all(color: _color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

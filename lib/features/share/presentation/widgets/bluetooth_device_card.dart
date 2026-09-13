@@ -79,27 +79,26 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
   Future<void> _connect() async {
     HapticFeedback.lightImpact();
 
-    final discoveredNotifier =
-        ref.read(discoveredDevicesProvider.notifier);
+    final discoveredNotifier = ref.read(discoveredDevicesProvider.notifier);
     final connectedNotifier = ref.read(connectedDevicesProvider.notifier);
 
     discoveredNotifier.updateDeviceState(
         widget.device.id, DeviceConnectionState.connecting);
 
     try {
-      final btDevice = BluetoothDevice.fromId(widget.device.id);
-      await btDevice.connect(timeout: const Duration(seconds: 12));
+      // 1. Native A2DP audio connect (connects headphones/earbuds at the Android audio level)
+      await discoveredNotifier.connectAudioDevice(widget.device.id);
+
+      // 2. Also attempt BLE GATT connect if supported
+      try {
+        final btDevice = BluetoothDevice.fromId(widget.device.id);
+        await btDevice.connect(timeout: const Duration(seconds: 3));
+      } catch (_) {}
 
       if (!mounted) return;
 
-      // Listen for disconnection
-      btDevice.connectionState.listen((state) {
-        if (state == BluetoothConnectionState.disconnected && mounted) {
-          connectedNotifier.removeDevice(widget.device.id);
-          discoveredNotifier.updateDeviceState(
-              widget.device.id, DeviceConnectionState.available);
-        }
-      });
+      // 3. Refresh live connected devices from Android AudioManager
+      await connectedNotifier.refreshConnectedDevices();
 
       discoveredNotifier.updateDeviceState(
           widget.device.id, DeviceConnectionState.connected);
@@ -108,35 +107,28 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
       setState(() => _showSuccess = true);
       await Future.delayed(const Duration(milliseconds: 1200));
       if (mounted) setState(() => _showSuccess = false);
-    } on Exception catch (_) {
+    } catch (_) {
       if (!mounted) return;
       discoveredNotifier.updateDeviceState(
-          widget.device.id, DeviceConnectionState.failed);
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (mounted) {
-        discoveredNotifier.updateDeviceState(
-            widget.device.id, DeviceConnectionState.available);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Couldn't connect",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Text(
-                  'Make sure the device is nearby and try again.',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.textPrimary,
-            duration: const Duration(seconds: 3),
+          widget.device.id, DeviceConnectionState.available);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pair "${widget.device.name}" in Bluetooth Settings?',
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-        );
-      }
+          action: SnackBarAction(
+            label: 'Open Settings',
+            textColor: AppColors.purpleLight,
+            onPressed: () {
+              ref.read(audioSharingServiceProvider).openBluetoothSettings();
+            },
+          ),
+          backgroundColor: AppColors.textPrimary,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -153,8 +145,14 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
     final connectedNotifier = ref.read(connectedDevicesProvider.notifier);
 
     discoveredNotifier.updateDeviceState(
-        widget.device.id, DeviceConnectionState.connecting);
+        widget.device.id, DeviceConnectionState.disconnecting);
 
+    // 1. Native A2DP disconnect
+    try {
+      await discoveredNotifier.disconnectAudioDevice(widget.device.id);
+    } catch (_) {}
+
+    // 2. BLE disconnect
     try {
       final btDevice = BluetoothDevice.fromId(widget.device.id);
       await btDevice.disconnect();
@@ -163,6 +161,8 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
     connectedNotifier.removeDevice(widget.device.id);
     discoveredNotifier.updateDeviceState(
         widget.device.id, DeviceConnectionState.available);
+
+    await connectedNotifier.refreshConnectedDevices();
   }
 
   @override
@@ -177,75 +177,186 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
   }
 
   Widget _cardContent() {
+    final isMuted = widget.device.isMuted;
+    final volume = isMuted ? 0.0 : widget.device.volumeLevel;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final connectedBg = isDark
+        ? const Color(0xFF132B25)
+        : AppColors.successLight.withValues(alpha: 0.7);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: _isConnected
-            ? AppColors.successLight
-            : Colors.white,
+        color: _isConnected ? connectedBg : theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _isConnected
-              ? AppColors.success.withOpacity(0.35)
-              : AppColors.cardBorder,
+              ? AppColors.success.withValues(alpha: 0.4)
+              : (isDark ? const Color(0xFF2B293E) : AppColors.cardBorder),
           width: _isConnected ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
             color: _isConnected
-                ? AppColors.success.withOpacity(0.08)
-                : AppColors.cardShadow,
+                ? AppColors.success.withValues(alpha: 0.08)
+                : (isDark ? Colors.black.withValues(alpha: 0.2) : AppColors.cardShadow),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Device icon with optional success pulse
-          if (_showSuccess)
-            PulseIndicator(
-              size: 52,
-              color: AppColors.success,
-              child: BluetoothDeviceIcon(
-                type: widget.device.type,
-                size: 26,
-                isConnected: true,
-              ),
-            )
-          else
-            BluetoothDeviceIcon(
-              type: widget.device.type,
-              size: 26,
-              isConnected: _isConnected,
-            ),
-
-          const SizedBox(width: 12),
-
-          // Name and status
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.device.name,
-                  style: AppTextStyles.labelLarge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              // Device icon with optional success pulse
+              if (_showSuccess)
+                PulseIndicator(
+                  size: 52,
+                  color: AppColors.success,
+                  child: BluetoothDeviceIcon(
+                    type: widget.device.type,
+                    size: 26,
+                    isConnected: true,
+                  ),
+                )
+              else
+                BluetoothDeviceIcon(
+                  type: widget.device.type,
+                  size: 26,
+                  isConnected: _isConnected,
                 ),
-                const SizedBox(height: 2),
-                _statusText(),
-              ],
-            ),
+
+              const SizedBox(width: 12),
+
+              // Name and status
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.device.name,
+                      style: AppTextStyles.labelLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    _statusText(),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Action button
+              _actionWidget(),
+            ],
           ),
 
-          const SizedBox(width: 8),
+          // Individual Sound & Volume Control when connected
+          if (_isConnected) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1B1A28) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Mute / Unmute Button
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      ref
+                          .read(connectedDevicesProvider.notifier)
+                          .toggleMute(widget.device.id);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isMuted
+                            ? AppColors.error.withValues(alpha: 0.12)
+                            : AppColors.purple.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isMuted
+                            ? Icons.volume_off_rounded
+                            : (volume > 0.5
+                                ? Icons.volume_up_rounded
+                                : Icons.volume_down_rounded),
+                        size: 18,
+                        color: isMuted ? AppColors.error : AppColors.purple,
+                      ),
+                    ),
+                  ),
 
-          // Action button
-          _actionWidget(),
+                  const SizedBox(width: 6),
+
+                  // Individual Volume Slider
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 4,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 7,
+                          pressedElevation: 2,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 14,
+                        ),
+                        activeTrackColor: isMuted
+                            ? AppColors.disabled
+                            : AppColors.purple,
+                        inactiveTrackColor: AppColors.cardBorder,
+                        thumbColor: isMuted
+                            ? AppColors.disabled
+                            : AppColors.purple,
+                        overlayColor: AppColors.purple.withValues(alpha: 0.12),
+                      ),
+                      child: Slider(
+                        value: volume,
+                        onChanged: isMuted
+                            ? null
+                            : (val) {
+                                ref
+                                    .read(connectedDevicesProvider.notifier)
+                                    .updateVolume(widget.device.id, val);
+                              },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 6),
+
+                  // Volume Percentage Label
+                  SizedBox(
+                    width: 38,
+                    child: Text(
+                      isMuted ? 'Mute' : '${(volume * 100).toInt()}%',
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isMuted
+                            ? AppColors.error
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -339,12 +450,12 @@ class _OutlinedActionButtonState extends State<_OutlinedActionButton> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
             color: widget.onTap != null
-                ? widget.color.withOpacity(0.08)
+                ? widget.color.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: widget.onTap != null
-                  ? widget.color.withOpacity(0.4)
+                  ? widget.color.withValues(alpha: 0.4)
                   : AppColors.disabled,
             ),
           ),

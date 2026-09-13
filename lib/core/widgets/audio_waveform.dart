@@ -129,7 +129,7 @@ class _WaveformPainter extends CustomPainter {
       // Gradient opacity — center bars more opaque
       final opacity = 0.4 + 0.6 * math.sin(relPos * math.pi).clamp(0.0, 1.0);
       final paint = Paint()
-        ..color = color.withOpacity(opacity)
+        ..color = color.withValues(alpha: opacity)
         ..style = PaintingStyle.fill
         ..strokeCap = StrokeCap.round;
 

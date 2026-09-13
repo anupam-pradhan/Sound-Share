@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:soundshare/core/constants/app_assets.dart';
-import 'package:soundshare/core/widgets/skeleton_loader.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+import 'package:soundshare/core/widgets/skeleton_loader.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/animated_widgets.dart';
+import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
@@ -16,6 +15,9 @@ import 'widgets/connected_audio_card.dart';
 import 'widgets/bluetooth_device_card.dart';
 import 'widgets/connected_devices_panel.dart';
 import 'widgets/share_audio_button.dart';
+// [COMMENTED OUT - BeatSyncCard disabled per SoundShare-only configuration]
+// import '../../beatsync/presentation/widgets/beatsync_card.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
 class ShareScreen extends ConsumerWidget {
   const ShareScreen({super.key});
@@ -29,18 +31,15 @@ class ShareScreen extends ConsumerWidget {
     final sharingState = ref.watch(audioSharingStateProvider);
     final sharingDuration = ref.watch(sharingDurationProvider);
 
-    final btEnabled =
-        btAdapterState.valueOrNull == BluetoothAdapterState.on;
+    final btEnabled = btAdapterState.valueOrNull == BluetoothAdapterState.on;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             // ── Header ──────────────────────────────
-            _AppHeader(
-              onSettings: () => context.go('/settings'),
-            ),
+            const _AppHeader(),
 
             // ── Scrollable content ───────────────────
             Expanded(
@@ -63,15 +62,29 @@ class ShareScreen extends ConsumerWidget {
                       ),
 
                     if (btEnabled) ...[
-                      // Your audio card
+                      // Audio Source card (This Phone)
                       ConnectedAudioCard(
+                        deviceType: BluetoothDeviceType.phone,
                         deviceName: connectedDevices.isNotEmpty
-                            ? 'Galaxy Buds 2 Pro'
-                            : null,
+                            ? 'Streaming to ${connectedDevices.length} ${connectedDevices.length == 1 ? 'headphone' : 'headphones'}'
+                            : 'This Phone (Media Audio)',
                         isConnected: btEnabled,
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
+
+                      // Connected Headphones Panel (Dual Headphone Manager)
+                      ConnectedDevicesPanel(
+                        connectedDevices: connectedDevices,
+                        sharingState: sharingState,
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Quick connect & Dual Audio Action Bar
+                      const _DualAudioQuickBar(),
+
+                      const SizedBox(height: 18),
 
                       // Bluetooth devices section
                       _BluetoothDevicesSection(
@@ -90,18 +103,14 @@ class ShareScreen extends ConsumerWidget {
                         },
                       ),
 
-                      const SizedBox(height: 20),
-
-                      // Connected devices panel
-                      ConnectedDevicesPanel(
-                        connectedDevices: connectedDevices,
-                        sharingState: sharingState,
-                      ),
-
                       const SizedBox(height: 24),
                     ],
 
-                    if (!btEnabled) const SizedBox(height: 24),
+                    if (!btEnabled) ...[
+                      // [COMMENTED OUT - BeatSyncCard per SoundShare-only configuration]
+                      // const BeatSyncCard(),
+                      const SizedBox(height: 24),
+                    ],
                   ],
                 ),
               ),
@@ -133,8 +142,7 @@ class ShareScreen extends ConsumerWidget {
 // ──────────────────────────────────────────────
 
 class _AppHeader extends StatelessWidget {
-  const _AppHeader({required this.onSettings});
-  final VoidCallback onSettings;
+  const _AppHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -165,38 +173,8 @@ class _AppHeader extends StatelessWidget {
             ),
           ),
 
-          // Settings button
-          Semantics(
-            label: 'Settings',
-            button: true,
-            child: GestureDetector(
-              onTap: () {
-                AppHaptics.light();
-                onSettings();
-              },
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.cardBorder),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: AppColors.cardShadow,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.settings_outlined,
-                  size: 18,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ),
+          // Animated 3D Dark/Light mode toggle
+          const ThemeToggleIconButton(),
         ],
       ),
     );
@@ -220,6 +198,14 @@ class _BluetoothDevicesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final namedDevices = devices
+        .where((d) =>
+            d.name != null &&
+            (d.name as String).trim().isNotEmpty &&
+            (d.name as String).toLowerCase() != 'unknown device' &&
+            !(d.name as String).toLowerCase().startsWith('unknown'))
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -256,13 +242,13 @@ class _BluetoothDevicesSection extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Device list
-        if (devices.isEmpty && !isScanning)
+        // Device list (only show real named devices)
+        if (namedDevices.isEmpty && !isScanning)
           _EmptyDevicesCard()
         else ...[
-          for (int i = 0; i < devices.length; i++)
+          for (int i = 0; i < namedDevices.length; i++)
             BluetoothDeviceCard(
-              device: devices[i] as dynamic,
+              device: namedDevices[i] as dynamic,
               animationDelay: Duration(milliseconds: i * 80),
             ),
         ],
@@ -276,36 +262,59 @@ class _BluetoothDevicesSection extends StatelessWidget {
   }
 }
 
-class _EmptyDevicesCard extends StatelessWidget {
+class _EmptyDevicesCard extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
+        ),
       ),
       child: Column(
         children: [
           const Icon(
-            Icons.bluetooth_disabled_rounded,
-            size: 32,
-            color: AppColors.textMuted,
+            Icons.bluetooth_audio_rounded,
+            size: 36,
+            color: AppColors.purple,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            'No Bluetooth audio devices found',
+            'No paired audio devices found nearby',
             style: AppTextStyles.headingSmall.copyWith(
-              color: AppColors.textSecondary,
+              color: AppColors.textPrimary,
+              fontSize: 14,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
-            'Make sure your headphones are nearby and discoverable.',
+            'Put your Bluetooth headphones in pairing mode or connect them in Settings.',
             style: AppTextStyles.bodyMedium,
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: () {
+              AppHaptics.light();
+              ref.read(audioSharingServiceProvider).openBluetoothSettings();
+            },
+            icon: const Icon(Icons.settings_bluetooth_rounded, size: 16),
+            label: const Text('Pair in Bluetooth Settings'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.purple,
+              side: BorderSide(
+                color: isDark ? const Color(0xFF3B3754) : AppColors.purple.withValues(alpha: 0.3),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           ),
         ],
       ),
@@ -313,31 +322,6 @@ class _EmptyDevicesCard extends StatelessWidget {
   }
 }
 
-class _ScanningPlaceholder extends StatelessWidget {
-  const _ScanningPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: const Center(
-        child: Column(
-          children: [
-            ScanningAnimation(size: 28, color: AppColors.purple),
-            SizedBox(height: 12),
-            Text(
-              'Searching for nearby Bluetooth devices...',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ──────────────────────────────────────────────
 // Bluetooth off banner
@@ -355,18 +339,18 @@ class _BluetoothOffBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.errorLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withOpacity(0.2)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           const Icon(Icons.bluetooth_disabled_rounded,
               color: AppColors.error, size: 22),
           const SizedBox(width: 12),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Bluetooth is turned off',
                   style: TextStyle(
                     fontSize: 13,
@@ -374,7 +358,7 @@ class _BluetoothOffBanner extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const Text(
+                Text(
                   'Turn on Bluetooth to find audio devices.',
                   style: TextStyle(
                     fontSize: 11,
@@ -407,3 +391,190 @@ class _BluetoothOffBanner extends StatelessWidget {
     );
   }
 }
+
+// [COMMENTED OUT - Web/QR Broadcast deferred per SoundShare Headphone Connect focus]
+/*
+class _BroadcastLiveCard extends ConsumerWidget {
+  const _BroadcastLiveCard({this.broadcastUrl});
+  final String? broadcastUrl;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF19162C) : const Color(0xFFF3EFFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purple.withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.success,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Live Audio Broadcast Active',
+                style: AppTextStyles.headingSmall.copyWith(fontSize: 14),
+              ),
+              const Spacer(),
+              const Icon(Icons.wifi_tethering_rounded, color: AppColors.purple, size: 20),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Friends on the same Wi-Fi or Hotspot can open this link in any browser to listen along:',
+            style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF100E1C) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.purple.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    broadcastUrl ?? 'Preparing broadcast stream...',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.purple,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (broadcastUrl != null)
+                  GestureDetector(
+                    onTap: () {
+                      AppHaptics.light();
+                      Clipboard.setData(ClipboardData(text: broadcastUrl!));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Broadcast link copied to clipboard!'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.copy_rounded,
+                      size: 18,
+                      color: AppColors.purple,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+*/
+
+// ──────────────────────────────────────────────
+// Dual Audio Quick Actions Bar
+// ──────────────────────────────────────────────
+
+class _DualAudioQuickBar extends ConsumerWidget {
+  const _DualAudioQuickBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                AppHaptics.light();
+                ref.read(audioSharingServiceProvider).openBluetoothSettings();
+              },
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.bluetooth_audio_rounded,
+                    size: 18,
+                    color: AppColors.purple,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Pair New Device',
+                    style: AppTextStyles.buttonMedium.copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            height: 20,
+            width: 1,
+            color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                AppHaptics.light();
+                ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Icon(
+                    Icons.speaker_group_rounded,
+                    size: 18,
+                    color: AppColors.blue,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Dual Audio / Output',
+                    style: AppTextStyles.buttonMedium.copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

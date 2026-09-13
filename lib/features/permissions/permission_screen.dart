@@ -36,8 +36,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -50,7 +53,9 @@ class _PermissionScreenState extends State<PermissionScreen> {
                 width: 88,
                 height: 88,
                 decoration: BoxDecoration(
-                  color: AppColors.purpleLight,
+                  color: isDark
+                      ? const Color(0xFF26243A)
+                      : AppColors.purpleLight,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -80,18 +85,20 @@ class _PermissionScreenState extends State<PermissionScreen> {
               const SizedBox(height: 36),
 
               // Permission items
-              _PermissionTile(
+              const _PermissionTile(
                 icon: Icons.bluetooth_searching_rounded,
                 title: 'Nearby Bluetooth Devices',
-                subtitle: 'Discover and connect to additional headphones and speakers',
+                subtitle:
+                    'Discover and connect to additional headphones and speakers',
               ),
 
               const SizedBox(height: 16),
 
-              _PermissionTile(
+              const _PermissionTile(
                 icon: Icons.notifications_active_outlined,
                 title: 'Foreground Notifications',
-                subtitle: 'Keep audio stream alive in background and show session controls',
+                subtitle:
+                    'Keep audio stream alive in background and show session controls',
               ),
 
               const Spacer(flex: 2),
@@ -157,15 +164,22 @@ class _PermissionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.cardShadow,
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : AppColors.cardShadow,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

@@ -90,6 +90,8 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
         return 'Sharing Audio';
       case AudioSharingState.stopping:
         return 'Stopping...';
+      case AudioSharingState.unavailable:
+        return 'Connect a Device to Share';
       default:
         return 'Share Audio';
     }
@@ -127,8 +129,8 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
                       boxShadow: _isSharing
                           ? [
                               BoxShadow(
-                                color: AppColors.purple
-                                    .withOpacity(0.25 + 0.25 * _glow.value),
+                                color: AppColors.purple.withValues(
+                                    alpha: 0.25 + 0.25 * _glow.value),
                                 blurRadius: 24,
                                 spreadRadius: 2,
                                 offset: const Offset(0, 8),
@@ -136,7 +138,7 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
                             ]
                           : AppGradients.primaryButton(radius: 18).boxShadow,
                     )
-                  : AppGradients.disabledButton(radius: 18),
+                  : AppGradients.disabledButtonOf(context, radius: 18),
               child: Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -170,7 +172,7 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -272,7 +274,9 @@ class _ShareIconPainter extends CustomPainter {
       // Outer arc
       canvas.drawArc(
         Rect.fromCenter(
-            center: Offset(w * 0.5, h * 0.5), width: w * 0.85, height: h * 0.85),
+            center: Offset(w * 0.5, h * 0.5),
+            width: w * 0.85,
+            height: h * 0.85),
         -2.7,
         2.0,
         false,
@@ -280,7 +284,9 @@ class _ShareIconPainter extends CustomPainter {
       );
       canvas.drawArc(
         Rect.fromCenter(
-            center: Offset(w * 0.5, h * 0.5), width: w * 0.85, height: h * 0.85),
+            center: Offset(w * 0.5, h * 0.5),
+            width: w * 0.85,
+            height: h * 0.85),
         0.7,
         2.0,
         false,

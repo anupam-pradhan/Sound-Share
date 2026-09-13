@@ -75,25 +75,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Step 3: Check if permissions are already granted
     final btScanStatus = await Permission.bluetoothScan.status;
     final btConnectStatus = await Permission.bluetoothConnect.status;
+    final btLegacyStatus = await Permission.bluetooth.status;
 
     if (!mounted) return;
 
-    if (btScanStatus.isGranted && btConnectStatus.isGranted) {
+    if ((btScanStatus.isGranted && btConnectStatus.isGranted) || btLegacyStatus.isGranted) {
       context.go('/share');
     } else {
       context.go('/permissions');
     }
-  }
-
-  Future<void> _requestPermissions() async {
-    // Request Bluetooth and notification permissions
-    await [
-      Permission.bluetooth,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-      Permission.notification,
-    ].request();
   }
 
   @override
@@ -105,10 +95,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.splashBackground,
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? AppGradients.splashBackgroundDark
+              : AppGradients.splashBackground,
         ),
         child: SafeArea(
           child: Column(
@@ -133,7 +129,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.purple.withValues(alpha: 0.25),
+                                  color: AppColors.purple.withValues(
+                                    alpha: isDark ? 0.45 : 0.25,
+                                  ),
                                   blurRadius: 30,
                                   offset: const Offset(0, 12),
                                 ),
@@ -189,7 +187,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         isSharing: true,
                         height: 56,
                         barCount: 36,
-                        color: AppColors.purple.withValues(alpha: 0.75),
+                        color: isDark
+                            ? AppColors.purpleLight
+                            : AppColors.purple.withValues(alpha: 0.75),
                       ),
                     ),
                   );

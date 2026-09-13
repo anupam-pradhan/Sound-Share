@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - SoundShare: Audio Sharing</title>
+  <meta name="description" content="Official Privacy Policy for SoundShare: Audio Sharing Android application.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7A5AF8;
+      --primary-light: #9E77ED;
+      --primary-glow: rgba(122, 90, 248, 0.25);
+      --secondary: #53B1FD;
+      --bg: #0A0910;
+      --card-bg: #13121D;
+      --card-border: #222033;
+      --text-main: #F4F3FB;
+      --text-muted: #8C8A9E;
+      --badge-bg: rgba(122, 90, 248, 0.12);
+      --badge-text: #B4A1FF;
+      --green: #12B76A;
+      --green-bg: rgba(18, 183, 106, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.65;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(122, 90, 248, 0.15), transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(83, 177, 253, 0.08), transparent 40%);
+    }
+
+    .container {
+      max-width: 820px;
+      width: 100%;
+    }
+
+    .header-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 36px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+
+    .app-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--badge-bg);
+      border: 1px solid rgba(122, 90, 248, 0.3);
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--badge-text);
+      margin-bottom: 16px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #D0CDE6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .meta-text {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .content-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 36px 32px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-top: 32px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2:first-of-type {
+      margin-top: 0;
+    }
+
+    h2 span.icon-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--badge-bg);
+      color: var(--primary-light);
+      font-size: 16px;
+    }
+
+    p {
+      color: #C8C5DC;
+      font-size: 15px;
+      margin-bottom: 16px;
+    }
+
+    .highlight-box {
+      background: rgba(18, 183, 106, 0.08);
+      border: 1px solid rgba(18, 183, 106, 0.25);
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin: 20px 0;
+      color: #D4F7E4;
+      font-size: 14.5px;
+      font-weight: 500;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .permission-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin: 18px 0;
+    }
+
+    .permission-item {
+      background: #181724;
+      border: 1px solid #27253B;
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+
+    .permission-title {
+      font-weight: 700;
+      color: #FFFFFF;
+      font-size: 14.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .permission-desc {
+      color: var(--text-muted);
+      font-size: 13.5px;
+      margin-bottom: 0;
+    }
+
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+      margin-bottom: 18px;
+    }
+
+    li {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 10px;
+      color: #C8C5DC;
+      font-size: 14.5px;
+    }
+
+    li::before {
+      content: '✔';
+      position: absolute;
+      left: 0;
+      color: var(--primary-light);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 36px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    a {
+      color: var(--primary-light);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 20px 12px;
+      }
+      .header-card, .content-card {
+        padding: 24px 20px;
+      }
+      h1 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Top Header Card -->
+    <header class="header-card">
+      <div class="app-badge">
+        <span class="status-dot"></span>
+        SoundShare: Audio Sharing
+      </div>
+      <h1>Privacy Policy</h1>
+      <div class="meta-text">
+        <span>Effective Date: August 31, 2026</span> • <span>Package: com.soundshare.soundshare</span>
+      </div>
+    </header>
+
+    <!-- Main Content Card -->
+    <main class="content-card">
+      <div class="highlight-box">
+        <div>🛡️</div>
+        <div>
+          <strong>Privacy-First Guarantee:</strong> SoundShare operates 100% on-device. We do <strong>not</strong> collect, track, store, or sell any personal data or audio recordings.
+        </div>
+      </div>
+
+      <h2>
+        <span class="icon-badge">1</span>
+        Overview
+      </h2>
+      <p>
+        SoundShare ("we", "our", or "the App") is developed to give you full control over Bluetooth audio sharing and 3D spatial sound. This Privacy Policy explains our commitment to zero data collection and transparent device permission usage.
+      </p>
+
+      <h2>
+        <span class="icon-badge">2</span>
+        Information We Do NOT Collect
+      </h2>
+      <ul>
+        <li><strong>No Personal Information:</strong> We do not collect names, email addresses, phone numbers, or account details.</li>
+        <li><strong>No Audio Logging or Recording:</strong> We never record, save, upload, or transmit your audio streams or microphone feeds.</li>
+        <li><strong>No Telemetry or Tracking:</strong> There are zero third-party tracking cookies or ad networks embedded in SoundShare.</li>
+      </ul>
+
+      <h2>
+        <span class="icon-badge">3</span>
+        Device Permissions & Why We Need Them
+      </h2>
+      <p>SoundShare requests only standard Android permissions strictly necessary to operate audio streaming and haptic feedback:</p>
+
+      <div class="permission-grid">
+        <div class="permission-item">
+          <div class="permission-title">📡 Nearby Devices & Bluetooth (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`)</div>
+          <p class="permission-desc">Required to discover, pair with, and stream synchronized audio to multiple Bluetooth headphones and speakers simultaneously.</p>
+        </div>
+
+        <div class="permission-item">
+          <div class="permission-title">🎙️ Audio Capture (`RECORD_AUDIO`)</div>
+          <p class="permission-desc">Used strictly in real-time RAM for BeatSync rhythm and frequency transient detection. Audio buffers are processed ephemerally in memory and immediately discarded without being stored or transmitted.</p>
+        </div>
+
+        <div class="permission-item">
+          <div class="permission-title">⚡ Foreground Service (`FOREGROUND_SERVICE_MEDIA_PLAYBACK`)</div>
+          <p class="permission-desc">Ensures uninterrupted Bluetooth audio sharing and background spatial audio processing when your screen is locked or while multitasking.</p>
+        </div>
+
+        <div class="permission-item">
+          <div class="permission-title">📳 Vibration (`VIBRATE`)</div>
+          <p class="permission-desc">Delivers tactile, audio-synchronized haptic feedback in time with musical beats and bass drops.</p>
+        </div>
+
+        <div class="permission-item">
+          <div class="permission-title">🔔 Notifications (`POST_NOTIFICATIONS`)</div>
+          <p class="permission-desc">Displays active playback session controls (Play, Pause, Disconnect) in your system notification shade.</p>
+        </div>
+      </div>
+
+      <h2>
+        <span class="icon-badge">4</span>
+        Third-Party Services & Advertising
+      </h2>
+      <p>
+        SoundShare contains <strong>no third-party advertising SDKs, ad-trackers, or data brokers</strong>. All spatial DSP and beat detection algorithms execute natively on your Android device.
+      </p>
+
+      <h2>
+        <span class="icon-badge">5</span>
+        Children's Privacy
+      </h2>
+      <p>
+        SoundShare does not collect any personal data and is completely safe for all audiences, fully complying with COPPA and Google Play family policies.
+      </p>
+
+      <h2>
+        <span class="icon-badge">6</span>
+        Contact Us
+      </h2>
+      <p>
+        If you have questions or inquiries regarding this Privacy Policy, please contact the developer via our official Google Play Store listing page.
+      </p>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      © 2026 SoundShare. All rights reserved. • Built for Android
+    </footer>
+  </div>
+
+</body>
+</html>

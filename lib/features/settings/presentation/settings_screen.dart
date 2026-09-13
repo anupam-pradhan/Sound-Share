@@ -10,7 +10,13 @@ import '../../../features/bluetooth/domain/bluetooth_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+// [COMMENTED OUT - BeatSync & Spatial Audio disabled per SoundShare-only configuration]
+// import '../../../features/beatsync/domain/beatsync_providers.dart';
+// import '../../../features/spatial_audio/domain/spatial_audio_providers.dart';
 import 'widgets/about_soundshare_sheet.dart';
+import 'widgets/privacy_policy_sheet.dart';
+import 'widgets/rate_app_dialog.dart';
+import '../../../app/theme/theme_provider.dart';
 
 // ──────────────────────────────────────────────
 // Preferences providers
@@ -22,6 +28,10 @@ final autoConnectProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
 
 final stayVisibleProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
   return _PrefNotifier('stay_visible', defaultValue: false);
+});
+
+final notificationsEnabledProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
+  return _PrefNotifier('notifications_enabled', defaultValue: true);
 });
 
 class _PrefNotifier extends StateNotifier<bool> {
@@ -73,11 +83,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final sharingState = ref.watch(audioSharingStateProvider);
     final autoConnect = ref.watch(autoConnectProvider);
     final stayVisible = ref.watch(stayVisibleProvider);
+    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     final btEnabled = btState.valueOrNull == BluetoothAdapterState.on;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,6 +157,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                           ),
                         ),
+                        /*
+                        // [COMMENTED OUT - BeatSync & Spatial Audio disabled per SoundShare-only configuration]
+                        _Divider(),
+                        InkWell(
+                          onTap: () {
+                            AppHaptics.light();
+                            context.push('/beatsync');
+                          },
+                          child: _SettingsRow(
+                            icon: Icons.vibration_rounded,
+                            iconColor: AppColors.purple,
+                            label: 'BeatSync',
+                            subtitle: 'Feel the music through vibrations',
+                            trailing: ...
+                          ),
+                        ),
+                        _Divider(),
+                        InkWell(
+                          onTap: () {
+                            AppHaptics.light();
+                            context.push('/spatial_audio');
+                          },
+                          child: _SettingsRow(
+                            icon: Icons.spatial_audio_rounded,
+                            iconColor: AppColors.purple,
+                            label: '3D Spatial Audio',
+                            subtitle: 'Immersive sound around you',
+                            trailing: ...
+                          ),
+                        ),
+                        */
+                        _Divider(),
+                        InkWell(
+                          onTap: () {
+                            AppHaptics.light();
+                            ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+                          },
+                          child: const _SettingsRow(
+                            icon: Icons.speaker_group_rounded,
+                            iconColor: AppColors.purple,
+                            label: 'Dual Audio & Output Devices',
+                            subtitle: 'Switch or route audio across outputs',
+                            trailing: Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
                         _Divider(),
                         _SettingsRow(
                           icon: Icons.high_quality_rounded,
@@ -163,6 +224,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     // Preferences section
                     _SettingsCard(
                       children: [
+                        _SettingsRow(
+                          icon: Icons.notifications_active_outlined,
+                          iconColor: AppColors.blue,
+                          label: 'Notifications',
+                          subtitle: 'Show playback controls in status bar',
+                          trailing: Switch(
+                            value: notificationsEnabled,
+                            onChanged: (_) => ref
+                                .read(notificationsEnabledProvider.notifier)
+                                .toggle(),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        _Divider(),
+                        _SettingsRow(
+                          icon: Icons.dark_mode_outlined,
+                          iconColor: AppColors.purple,
+                          label: 'Dark mode',
+                          subtitle: 'Switch between dark and light appearance',
+                          trailing: Switch(
+                            value: themeMode == ThemeMode.dark,
+                            onChanged: (_) {
+                              AppHaptics.light();
+                              ref.read(themeModeProvider.notifier).toggleTheme();
+                            },
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        _Divider(),
                         _SettingsRow(
                           icon: Icons.link_rounded,
                           iconColor: AppColors.blue,
@@ -195,11 +287,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     const SizedBox(height: 12),
 
-                    // About
+                    // Legal & About
                     _SettingsCard(
                       children: [
                         InkWell(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          onTap: () {
+                            AppHaptics.light();
+                            RateAppDialog.show(context);
+                          },
+                          child: const _SettingsRow(
+                            icon: Icons.star_rounded,
+                            iconColor: Colors.amber,
+                            label: 'Rate SoundShare',
+                            subtitle: 'Love the app? Leave a review',
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                SizedBox(width: 4),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: AppColors.textMuted,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        _Divider(),
+                        InkWell(
+                          onTap: () {
+                            AppHaptics.light();
+                            PrivacyPolicySheet.show(context);
+                          },
+                          child: const _SettingsRow(
+                            icon: Icons.privacy_tip_outlined,
+                            iconColor: AppColors.blue,
+                            label: 'Privacy Policy',
+                            subtitle: 'Zero tracking & local audio processing',
+                            trailing: Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                        _Divider(),
+                        InkWell(
+                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
                           onTap: () => AboutSoundShareSheet.show(
                             context,
                             version: _version,
@@ -270,16 +410,23 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: const [
+        border: Border.all(
+          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: AppColors.cardShadow,
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : AppColors.cardShadow,
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -313,7 +460,7 @@ class _SettingsRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
+              color: iconColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 18, color: iconColor),
@@ -340,11 +487,12 @@ class _SettingsRow extends StatelessWidget {
 class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Divider(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Divider(
       height: 1,
       indent: 60,
       endIndent: 0,
-      color: AppColors.divider,
+      color: isDark ? const Color(0xFF2B293E) : AppColors.divider,
     );
   }
 }

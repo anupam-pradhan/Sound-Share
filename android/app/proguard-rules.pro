@@ -14,5 +14,8 @@
 # permission_handler
 -keep class com.baseflow.permissionhandler.** { *; }
 
-# SoundShare native channel
+# SoundShare native channel & engine
 -keep class com.soundshare.soundshare.** { *; }
+
+# Play Core deferred components suppression
+-dontwarn com.google.android.play.core.**

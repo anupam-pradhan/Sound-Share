@@ -5,6 +5,7 @@ enum BluetoothDeviceType {
   speaker,
   carAudio,
   audioDevice,
+  phone,
   unknown,
 }
 
@@ -27,6 +28,8 @@ class BluetoothDeviceModel {
     required this.connectionState,
     this.batteryLevel,
     this.rssi,
+    this.volumeLevel = 0.85,
+    this.isMuted = false,
   });
 
   final String id;
@@ -40,6 +43,12 @@ class BluetoothDeviceModel {
   /// Signal strength.
   final int? rssi;
 
+  /// Individual volume level (0.0 to 1.0)
+  final double volumeLevel;
+
+  /// Whether this individual device is muted
+  final bool isMuted;
+
   BluetoothDeviceModel copyWith({
     String? id,
     String? name,
@@ -47,6 +56,8 @@ class BluetoothDeviceModel {
     DeviceConnectionState? connectionState,
     int? batteryLevel,
     int? rssi,
+    double? volumeLevel,
+    bool? isMuted,
   }) {
     return BluetoothDeviceModel(
       id: id ?? this.id,
@@ -55,6 +66,8 @@ class BluetoothDeviceModel {
       connectionState: connectionState ?? this.connectionState,
       batteryLevel: batteryLevel ?? this.batteryLevel,
       rssi: rssi ?? this.rssi,
+      volumeLevel: volumeLevel ?? this.volumeLevel,
+      isMuted: isMuted ?? this.isMuted,
     );
   }
 
@@ -85,6 +98,8 @@ BluetoothDeviceType deviceTypeFromClass(int? majorDeviceClass) {
   switch (majorDeviceClass) {
     case 0x0100: // AUDIO_VIDEO — further refined by minor class
       return BluetoothDeviceType.audioDevice;
+    case 0x0200: // PHONE
+      return BluetoothDeviceType.phone;
     default:
       return BluetoothDeviceType.unknown;
   }

@@ -30,6 +30,12 @@ class AppGradients {
     colors: [Color(0xFFF8F7FF), Color(0xFFEFEDFF)],
   );
 
+  static const LinearGradient splashBackgroundDark = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF0F0E17), Color(0xFF1B1A28)],
+  );
+
   static const LinearGradient cardHeader = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -53,7 +59,7 @@ class AppGradients {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: AppColors.purple.withOpacity(0.35),
+            color: AppColors.purple.withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -64,4 +70,12 @@ class AppGradients {
         color: AppColors.disabled,
         borderRadius: BorderRadius.circular(radius),
       );
+
+  static BoxDecoration disabledButtonOf(BuildContext context, {double radius = 16}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return BoxDecoration(
+      color: isDark ? const Color(0xFF26243A) : AppColors.disabled,
+      borderRadius: BorderRadius.circular(radius),
+    );
+  }
 }
