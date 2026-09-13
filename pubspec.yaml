@@ -35,6 +35,30 @@ dependencies:
   # Utilities
   collection: ^1.18.0
 
+  # Shimmer loading effects (replaces custom skeleton loader)
+  shimmer: ^3.0.0
+
+  # Native Google Play in-app review
+  in_app_review: ^2.0.9
+
+  # Google Play Core in-app updates
+  in_app_update: ^4.2.3
+
+  # URL launching (Play Store, links)
+  url_launcher: ^6.3.1
+
+  # Native share sheet
+  share_plus: ^10.1.4
+
+  # QR code generation for broadcast URL
+  qr_flutter: ^4.1.0
+
+  # Network connectivity monitoring
+  connectivity_plus: ^6.1.1
+
+  # Keep screen on during audio sharing
+  wakelock_plus: ^1.2.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

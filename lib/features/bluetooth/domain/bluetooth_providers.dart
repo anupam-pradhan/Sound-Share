@@ -252,6 +252,7 @@ class ConnectedDevicesNotifier
 
   static const _audioChannel = MethodChannel('com.soundshare/audio');
   static const _audioEventsChannel = EventChannel('com.soundshare/audio_events');
+  static const _btChannel = MethodChannel('com.soundshare/bluetooth');
   StreamSubscription<dynamic>? _audioEventSub;
   Timer? _pollTimer;
 
@@ -382,11 +383,12 @@ class ConnectedDevicesNotifier
     } catch (_) {}
   }
 
-  /// Disconnect a connected audio device and remove from active list
+  /// Disconnect a connected audio device and remove from active list.
+  /// Uses the class-level _btChannel instead of creating a new MethodChannel.
   Future<void> disconnectDevice(String id) async {
     removeDevice(id);
     try {
-      const MethodChannel('com.soundshare/bluetooth').invokeMethod(
+      await _btChannel.invokeMethod(
         'disconnectAudioDevice',
         {'address': id},
       );

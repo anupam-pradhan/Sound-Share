@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../domain/audio_sharing_service.dart';
 
 /// Android implementation of [AudioSharingService] using MethodChannel
@@ -53,6 +55,11 @@ class AndroidAudioSharingService implements AudioSharingService {
     _isCurrentlySharing = true;
     _sharingController.add(true);
 
+    // Enable wakelock to keep screen on during audio sharing
+    try {
+      await WakelockPlus.enable();
+    } catch (_) {}
+
     // 1. Start native Android foreground service
     try {
       await _channel.invokeMethod('startForegroundService');
@@ -63,8 +70,17 @@ class AndroidAudioSharingService implements AudioSharingService {
       await _channel.invokeMethod('startAudioPlayback');
     } catch (_) {}
 
-    // 3. Start local audio broadcast server (Wi-Fi / Hotspot multi-device sharing)
-    await _startLocalBroadcastServer();
+    // 3. Check Wi-Fi connectivity before starting broadcast
+    bool isOnWifi = false;
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      isOnWifi = connectivityResult.contains(ConnectivityResult.wifi);
+    } catch (_) {}
+
+    // 4. Start local audio broadcast server (Wi-Fi / Hotspot multi-device sharing)
+    if (isOnWifi) {
+      await _startLocalBroadcastServer();
+    }
 
     _emitLatency(15.0);
   }
@@ -88,6 +104,11 @@ class AndroidAudioSharingService implements AudioSharingService {
 
     // 3. Stop local broadcast server
     await _stopLocalBroadcastServer();
+
+    // 4. Disable wakelock
+    try {
+      await WakelockPlus.disable();
+    } catch (_) {}
   }
 
   @override
@@ -110,28 +131,40 @@ class AndroidAudioSharingService implements AudioSharingService {
     }
   }
 
+  /// Start local broadcast server with port fallback to avoid SocketException.
+  /// Tries ports 8888-8898 to handle cases where the port is already in use
+  /// (e.g., after a crash without clean shutdown).
   Future<void> _startLocalBroadcastServer() async {
-    try {
-      _server = await HttpServer.bind(InternetAddress.anyIPv4, 8888);
-      
-      // Determine local IP
-      String localIp = '127.0.0.1';
+    // First, ensure any previous server is cleaned up
+    await _stopLocalBroadcastServer();
+
+    // Try binding to ports 8888-8898 to handle port conflicts
+    const startPort = 8888;
+    const maxAttempts = 11;
+
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      final port = startPort + attempt;
       try {
-        final interfaces = await NetworkInterface.list(
-          type: InternetAddressType.IPv4,
-          includeLoopback: false,
-        );
-        if (interfaces.isNotEmpty && interfaces.first.addresses.isNotEmpty) {
-          localIp = interfaces.first.addresses.first.address;
-        }
-      } catch (_) {}
+        _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
 
-      _broadcastUrl = 'http://$localIp:8888';
-      _broadcastUrlController.add(_broadcastUrl);
+        // Determine local IP
+        String localIp = '127.0.0.1';
+        try {
+          final interfaces = await NetworkInterface.list(
+            type: InternetAddressType.IPv4,
+            includeLoopback: false,
+          );
+          if (interfaces.isNotEmpty && interfaces.first.addresses.isNotEmpty) {
+            localIp = interfaces.first.addresses.first.address;
+          }
+        } catch (_) {}
 
-      _server?.listen((HttpRequest request) {
-        request.response.headers.contentType = ContentType.html;
-        request.response.write('''
+        _broadcastUrl = 'http://$localIp:$port';
+        _broadcastUrlController.add(_broadcastUrl);
+
+        _server?.listen((HttpRequest request) {
+          request.response.headers.contentType = ContentType.html;
+          request.response.write('''
 <!DOCTYPE html>
 <html>
 <head>
@@ -217,10 +250,24 @@ class AndroidAudioSharingService implements AudioSharingService {
 </body>
 </html>
 ''');
-        request.response.close();
-      });
-    } catch (_) {
-      _broadcastUrl = null;
+          request.response.close();
+        });
+
+        // Successfully bound — break out of retry loop
+        break;
+      } on SocketException catch (_) {
+        // Port already in use, try next port
+        if (attempt == maxAttempts - 1) {
+          // All ports exhausted
+          _broadcastUrl = null;
+          _broadcastUrlController.add(null);
+        }
+        continue;
+      } catch (_) {
+        _broadcastUrl = null;
+        _broadcastUrlController.add(null);
+        break;
+      }
     }
   }
 
@@ -242,6 +289,10 @@ class AndroidAudioSharingService implements AudioSharingService {
   @override
   void dispose() {
     _stopLocalBroadcastServer();
+    // Ensure wakelock is disabled on dispose
+    try {
+      WakelockPlus.disable();
+    } catch (_) {}
     _sharingController.close();
     _latencyController.close();
     _broadcastUrlController.close();

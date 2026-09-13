@@ -1,27 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 
+/// App update service using the official Google Play Core In-App Updates API.
 class AppUpdateService {
   AppUpdateService._();
 
-  /// Check if an app update is available.
-  /// In a live Play Store deployment, this queries the In-App Update API or your backend version endpoint.
+  /// Check if an app update is available via Google Play Core API.
+  /// Shows a flexible update flow if available, or falls back to
+  /// showing a custom dialog for force updates.
   static Future<void> checkForUpdates(BuildContext context) async {
     try {
-      await PackageInfo.fromPlatform();
-      // Future-proof hook: check if remote version > current version
-      // When deployed to Play Store, this integrates with Android In-App Updates
-    } catch (_) {}
+      final updateInfo = await InAppUpdate.checkForUpdate();
+
+      if (updateInfo.updateAvailability ==
+          UpdateAvailability.updateAvailable) {
+        // Check if immediate update is allowed (force update)
+        if (updateInfo.immediateUpdateAllowed) {
+          // Critical update — blocks the app until updated
+          await InAppUpdate.performImmediateUpdate();
+        } else if (updateInfo.flexibleUpdateAllowed) {
+          // Non-critical update — downloads in background
+          await InAppUpdate.startFlexibleUpdate();
+          // Once downloaded, prompt to install
+          await InAppUpdate.completeFlexibleUpdate();
+        } else {
+          // Update available but neither mode allowed — show custom dialog
+          final info = await PackageInfo.fromPlatform();
+          if (context.mounted) {
+            showUpdateDialog(
+              context,
+              latestVersion: 'New Version',
+              releaseNotes:
+                  'A new version of SoundShare is available with improved audio sharing.',
+              currentVersion: info.version,
+            );
+          }
+        }
+      }
+    } catch (_) {
+      // In-app update not supported (e.g., debug builds, sideloaded APK)
+      // Silently fail — this is expected during development
+    }
   }
 
-  /// Show the Update Available modal dialog
+  /// Show the Update Available modal dialog (fallback for when Play Core
+  /// in-app update is not available).
   static void showUpdateDialog(
     BuildContext context, {
     required String latestVersion,
     required String releaseNotes,
+    String? currentVersion,
     bool isForceUpdate = false,
   }) {
     showDialog(
@@ -99,9 +131,12 @@ class AppUpdateService {
                       ],
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            // Opens Google Play Store listing
+                          onTap: () async {
                             Navigator.of(context).pop();
+                            // Try Play Core immediate update as fallback
+                            try {
+                              await InAppUpdate.performImmediateUpdate();
+                            } catch (_) {}
                           },
                           child: Container(
                             height: 48,

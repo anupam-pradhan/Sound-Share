@@ -35,7 +35,7 @@ final audioSharingStateProvider =
 });
 
 class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
-  AudioSharingNotifier(this._ref) : super(AudioSharingState.ready) {
+  AudioSharingNotifier(this._ref) : super(AudioSharingState.unavailable) {
     _ref.listen(connectedDevicesProvider,
         (_, devices) => _onConnectedDevicesChanged(devices));
   }
@@ -50,8 +50,10 @@ class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
         state == AudioSharingState.stopping) {
       return;
     }
-    // Ready to share audio to connected devices or through local network broadcast
-    state = AudioSharingState.ready;
+    // Set unavailable when no devices connected, ready when devices are present
+    state = devices.isEmpty
+        ? AudioSharingState.unavailable
+        : AudioSharingState.ready;
   }
 
   Future<void> startSharing() async {
