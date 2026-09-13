@@ -3,8 +3,9 @@ import 'package:soundshare/features/splash/splash_screen.dart';
 import 'package:soundshare/features/permissions/permission_screen.dart';
 import 'package:soundshare/features/share/presentation/share_screen.dart';
 import 'package:soundshare/features/settings/presentation/settings_screen.dart';
-import 'package:soundshare/features/beatsync/presentation/beatsync_screen.dart';
-import 'package:soundshare/features/spatial_audio/presentation/spatial_audio_settings_screen.dart';
+// [COMMENTED OUT - BeatSync & Spatial Audio disabled per SoundShare-only configuration]
+// import 'package:soundshare/features/beatsync/presentation/beatsync_screen.dart';
+// import 'package:soundshare/features/spatial_audio/presentation/spatial_audio_settings_screen.dart';
 import 'package:soundshare/app/navigation/main_shell.dart';
 
 final appRouter = GoRouter(
@@ -22,17 +23,19 @@ final appRouter = GoRouter(
       builder: (context, state) => const PermissionScreen(),
     ),
 
-    // BeatSync Screen
+    /*
+    // BeatSync Screen (Commented out)
     GoRoute(
       path: '/beatsync',
       builder: (context, state) => const BeatSyncScreen(),
     ),
 
-    // 3D Spatial Audio Screen
+    // 3D Spatial Audio Screen (Commented out)
     GoRoute(
       path: '/spatial_audio',
       builder: (context, state) => const SpatialAudioSettingsScreen(),
     ),
+    */
 
     // Main shell with bottom nav
     StatefulShellRoute.indexedStack(

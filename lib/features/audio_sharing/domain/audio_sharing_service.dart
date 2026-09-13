@@ -1,3 +1,5 @@
+import 'dart:async';
+
 /// Audio sharing state machine.
 enum AudioSharingState {
   /// No secondary device connected — sharing unavailable.
@@ -45,7 +47,7 @@ abstract class AudioSharingService {
   /// Whether the current device supports audio sharing.
   Future<AudioSharingCapability> canShareAudio();
 
-  /// Start audio sharing to connected devices.
+  /// Start audio sharing to connected devices and local broadcast.
   Future<void> startSharing();
 
   /// Stop audio sharing.
@@ -56,6 +58,18 @@ abstract class AudioSharingService {
 
   /// Stream of audio latency in milliseconds (best-effort).
   Stream<double> get latency;
+
+  /// Local network broadcast URL when sharing is active (for friend's phone).
+  String? get broadcastUrl;
+
+  /// Stream of broadcast URL changes.
+  Stream<String?> get broadcastUrlStream;
+
+  /// Open system Bluetooth settings.
+  Future<bool> openBluetoothSettings();
+
+  /// Open Android Media Output / Dual Audio switcher.
+  Future<bool> openMediaOutputSelector();
 
   /// Dispose resources.
   void dispose();

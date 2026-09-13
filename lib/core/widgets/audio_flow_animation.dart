@@ -11,11 +11,13 @@ class AudioFlowAnimation extends StatefulWidget {
     super.key,
     required this.isSharing,
     this.connectedDevice,
+    this.connectedDevices,
     this.height = 100,
   });
 
   final bool isSharing;
   final BluetoothDeviceModel? connectedDevice;
+  final List<BluetoothDeviceModel>? connectedDevices;
   final double height;
 
   @override
@@ -103,57 +105,105 @@ class _AudioFlowAnimationState extends State<AudioFlowAnimation>
             ),
           ),
 
-          // Destination device
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 400),
-                decoration: widget.connectedDevice != null
-                    ? BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: widget.isSharing
-                            ? [
-                                BoxShadow(
-                                  color:
-                                      AppColors.success.withValues(alpha: 0.35),
-                                  blurRadius: 12,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : [],
-                      )
-                    : null,
-                child: BluetoothDeviceIcon(
-                  type: widget.connectedDevice?.type ??
-                      BluetoothDeviceType.headphones,
-                  size: 28,
-                  isConnected: widget.connectedDevice != null,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.connectedDevice != null
-                    ? _shortenName(widget.connectedDevice!.name)
-                    : 'No device',
-                style: const TextStyle(
-                  fontSize: 9,
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+          // Destination devices (Supports Dual Headphone visualization)
+          _buildDestination(),
         ],
       ),
     );
   }
 
+  Widget _buildDestination() {
+    final devices = widget.connectedDevices ??
+        (widget.connectedDevice != null ? [widget.connectedDevice!] : []);
+
+    if (devices.isEmpty) {
+      return _buildDeviceBadge(null, 'No headphone');
+    }
+
+    if (devices.length == 1) {
+      return _buildDeviceBadge(devices.first, _shortenName(devices.first.name));
+    }
+
+    // 2 or more headphones (Dual Headphone mode)
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildDeviceBadge(devices[0], _shortenName(devices[0].name), badge: 'HP 1'),
+        const SizedBox(width: 8),
+        _buildDeviceBadge(devices[1], _shortenName(devices[1].name), badge: 'HP 2'),
+      ],
+    );
+  }
+
+  Widget _buildDeviceBadge(BluetoothDeviceModel? dev, String label, {String? badge}) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              decoration: dev != null
+                  ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: widget.isSharing
+                          ? [
+                              BoxShadow(
+                                color: AppColors.success.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : [],
+                    )
+                  : null,
+              child: BluetoothDeviceIcon(
+                type: dev?.type ?? BluetoothDeviceType.headphones,
+                size: 26,
+                isConnected: dev != null,
+              ),
+            ),
+            if (badge != null)
+              Positioned(
+                top: -4,
+                right: -6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.purple,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w500,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
   String _shortenName(String name) {
-    if (name.length <= 12) return name;
-    return '${name.substring(0, 11)}…';
+    if (name.length <= 10) return name;
+    return '${name.substring(0, 9)}…';
   }
 }
 

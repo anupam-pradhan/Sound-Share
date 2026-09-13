@@ -75,10 +75,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Step 3: Check if permissions are already granted
     final btScanStatus = await Permission.bluetoothScan.status;
     final btConnectStatus = await Permission.bluetoothConnect.status;
+    final btLegacyStatus = await Permission.bluetooth.status;
 
     if (!mounted) return;
 
-    if (btScanStatus.isGranted && btConnectStatus.isGranted) {
+    if ((btScanStatus.isGranted && btConnectStatus.isGranted) || btLegacyStatus.isGranted) {
       context.go('/share');
     } else {
       context.go('/permissions');

@@ -86,19 +86,19 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
         widget.device.id, DeviceConnectionState.connecting);
 
     try {
-      final btDevice = BluetoothDevice.fromId(widget.device.id);
-      await btDevice.connect(timeout: const Duration(seconds: 12));
+      // 1. Native A2DP audio connect (connects headphones/earbuds at the Android audio level)
+      await discoveredNotifier.connectAudioDevice(widget.device.id);
+
+      // 2. Also attempt BLE GATT connect if supported
+      try {
+        final btDevice = BluetoothDevice.fromId(widget.device.id);
+        await btDevice.connect(timeout: const Duration(seconds: 3));
+      } catch (_) {}
 
       if (!mounted) return;
 
-      // Listen for disconnection
-      btDevice.connectionState.listen((state) {
-        if (state == BluetoothConnectionState.disconnected && mounted) {
-          connectedNotifier.removeDevice(widget.device.id);
-          discoveredNotifier.updateDeviceState(
-              widget.device.id, DeviceConnectionState.available);
-        }
-      });
+      // 3. Refresh live connected devices from Android AudioManager
+      await connectedNotifier.refreshConnectedDevices();
 
       discoveredNotifier.updateDeviceState(
           widget.device.id, DeviceConnectionState.connected);
@@ -107,35 +107,28 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
       setState(() => _showSuccess = true);
       await Future.delayed(const Duration(milliseconds: 1200));
       if (mounted) setState(() => _showSuccess = false);
-    } on Exception catch (_) {
+    } catch (_) {
       if (!mounted) return;
       discoveredNotifier.updateDeviceState(
-          widget.device.id, DeviceConnectionState.failed);
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (mounted) {
-        discoveredNotifier.updateDeviceState(
-            widget.device.id, DeviceConnectionState.available);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Couldn't connect",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  'Make sure the device is nearby and try again.',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.textPrimary,
-            duration: Duration(seconds: 3),
+          widget.device.id, DeviceConnectionState.available);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pair "${widget.device.name}" in Bluetooth Settings?',
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-        );
-      }
+          action: SnackBarAction(
+            label: 'Open Settings',
+            textColor: AppColors.purpleLight,
+            onPressed: () {
+              ref.read(audioSharingServiceProvider).openBluetoothSettings();
+            },
+          ),
+          backgroundColor: AppColors.textPrimary,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -152,8 +145,14 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
     final connectedNotifier = ref.read(connectedDevicesProvider.notifier);
 
     discoveredNotifier.updateDeviceState(
-        widget.device.id, DeviceConnectionState.connecting);
+        widget.device.id, DeviceConnectionState.disconnecting);
 
+    // 1. Native A2DP disconnect
+    try {
+      await discoveredNotifier.disconnectAudioDevice(widget.device.id);
+    } catch (_) {}
+
+    // 2. BLE disconnect
     try {
       final btDevice = BluetoothDevice.fromId(widget.device.id);
       await btDevice.disconnect();
@@ -162,6 +161,8 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
     connectedNotifier.removeDevice(widget.device.id);
     discoveredNotifier.updateDeviceState(
         widget.device.id, DeviceConnectionState.available);
+
+    await connectedNotifier.refreshConnectedDevices();
   }
 
   @override
