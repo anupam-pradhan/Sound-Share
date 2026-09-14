@@ -87,6 +87,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final themeMode = ref.watch(themeModeProvider);
 
     final btEnabled = btState.valueOrNull == BluetoothAdapterState.on;
+    final activeMode = ref.watch(activeSharingModeProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -203,6 +204,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               Icons.chevron_right_rounded,
                               size: 18,
                               color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                        _Divider(),
+                        _SettingsRow(
+                          icon: Icons.tune_rounded,
+                          iconColor: AppColors.purple,
+                          label: 'Sharing mode',
+                          subtitle: activeMode.subtitle,
+                          trailing: Text(
+                            activeMode.title,
+                            style: AppTextStyles.labelMedium.copyWith(
+                              color: AppColors.purple,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),

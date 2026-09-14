@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#12131A"
+    android:padding="12dp">
+
+    <!-- Title Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dual A2DP Audio Routing PoC"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_os_info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Detecting OS &amp; Device Info..."
+                android:textColor="#8E92BC"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_status_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="READY"
+            android:textColor="#4ADE80"
+            android:background="#1B382B"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Technical Verdict Banner Card -->
+    <LinearLayout
+        android:id="@+id/layout_verdict_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#1E2030"
+        android:padding="10dp"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TECHNICAL VERDICT [A, B, C, D, E]"
+            android:textColor="#6366F1"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_verdict_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Run diagnostic suite to evaluate verdict"
+            android:textColor="#E0E7FF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:layout_marginTop="3dp" />
+
+        <TextView
+            android:id="@+id/tv_verdict_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="A: Both devices actually receive audio | B: Only one works | C: Two connected but audio reaches only one | D: Blocked by permissions | E: OEM-specific"
+            android:textColor="#9CA3AF"
+            android:textSize="11sp"
+            android:layout_marginTop="3dp" />
+    </LinearLayout>
+
+    <!-- Connected Devices Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#1A1C28"
+        android:padding="10dp"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="BLUETOOTH CLASSIC A2DP SINK STATE"
+                android:textColor="#A5B4FC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_bt_device_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 connected"
+                android:textColor="#F59E0B"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_device_1_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Device 1: None detected"
+            android:textColor="#D1D5DB"
+            android:textSize="11sp"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/tv_device_2_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Device 2: None detected"
+            android:textColor="#D1D5DB"
+            android:textSize="11sp"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/tv_active_stream_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Audio HAL Active Sink: None"
+            android:textColor="#818CF8"
+            android:textSize="11sp"
+            android:layout_marginTop="3dp" />
+    </LinearLayout>
+
+    <!-- Action Buttons Grid -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_scan_devices"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:text="1. Scan Devices"
+                android:textColor="#FFFFFF"
+                android:background="#2E334D"
+                android:textSize="11sp"
+                android:layout_marginRight="3dp" />
+
+            <Button
+                android:id="@+id/btn_public_routing_test"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:text="2. Public Routing"
+                android:textColor="#FFFFFF"
+                android:background="#2E334D"
+                android:textSize="11sp"
+                android:layout_marginLeft="3dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button
+                android:id="@+id/btn_system_routing_probe"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:text="3. Hidden API Probe"
+                android:textColor="#FFFFFF"
+                android:background="#2E334D"
+                android:textSize="11sp"
+                android:layout_marginRight="3dp" />
+
+            <Button
+                android:id="@+id/btn_play_test_tone"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:text="4. Play Test Tone"
+                android:textColor="#FFFFFF"
+                android:background="#4F46E5"
+                android:textSize="11sp"
+                android:layout_marginLeft="3dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button
+                android:id="@+id/btn_run_full_audit"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1.2"
+                android:text="⚡ Run Full Audit"
+                android:textColor="#FFFFFF"
+                android:background="#059669"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:layout_marginRight="3dp" />
+
+            <Button
+                android:id="@+id/btn_stop_tone"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="0.8"
+                android:text="Stop Tone"
+                android:textColor="#EF4444"
+                android:background="#2E334D"
+                android:textSize="11sp"
+                android:layout_marginLeft="3dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Physical Auditory Verification Feedback (User Hearing Test) -->
+    <LinearLayout
+        android:id="@+id/layout_hearing_test"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#161822"
+        android:padding="8dp"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PHYSICAL AUDITORY VERIFICATION (Listen to tone in headphones):"
+            android:textColor="#F59E0B"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button
+                android:id="@+id/btn_heard_both"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:text="Heard in BOTH (Verdict A)"
+                android:textColor="#FFFFFF"
+                android:background="#1B382B"
+                android:textSize="10sp"
+                android:layout_marginRight="3dp" />
+
+            <Button
+                android:id="@+id/btn_heard_one_only"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:text="Heard in ONE ONLY (Verdict C)"
+                android:textColor="#FFFFFF"
+                android:background="#381B1B"
+                android:textSize="10sp"
+                android:layout_marginLeft="3dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Console Header with Copy, Save & Clear -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="4dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="DIAGNOSTIC LOG &amp; CALL TRACES"
+            android:textColor="#9CA3AF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btn_save_report"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:text="Save"
+            android:textColor="#FBBF24"
+            android:background="#1E2030"
+            android:textSize="10sp"
+            android:layout_marginRight="3dp" />
+
+        <Button
+            android:id="@+id/btn_share_report"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:text="Share"
+            android:textColor="#38BDF8"
+            android:background="#1E2030"
+            android:textSize="10sp"
+            android:layout_marginRight="3dp" />
+
+        <Button
+            android:id="@+id/btn_copy_log"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:text="Copy"
+            android:textColor="#A5B4FC"
+            android:background="#1E2030"
+            android:textSize="10sp"
+            android:layout_marginRight="3dp" />
+
+        <Button
+            android:id="@+id/btn_clear_log"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:text="Clear"
+            android:textColor="#9CA3AF"
+            android:background="#1E2030"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <!-- Realtime Monospace Log Console -->
+    <ScrollView
+        android:id="@+id/scroll_log"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#090A0F"
+        android:padding="6dp">
+
+        <TextView
+            android:id="@+id/tv_console_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="#4ADE80"
+            android:textSize="10sp"
+            android:lineSpacingExtra="2dp"
+            android:text="=== A2DP Combined Routing Diagnostic Engine Initialized ===\n" />
+    </ScrollView>
+
+</LinearLayout>

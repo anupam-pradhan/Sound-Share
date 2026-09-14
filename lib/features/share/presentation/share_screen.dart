@@ -15,6 +15,8 @@ import 'widgets/connected_audio_card.dart';
 import 'widgets/bluetooth_device_card.dart';
 import 'widgets/connected_devices_panel.dart';
 import 'widgets/share_audio_button.dart';
+import 'widgets/audio_mode_selector_card.dart';
+import 'widgets/peer_sharing_qr_dialog.dart';
 // [COMMENTED OUT - BeatSyncCard disabled per SoundShare-only configuration]
 // import '../../beatsync/presentation/widgets/beatsync_card.dart';
 import '../../../core/widgets/theme_toggle_button.dart';
@@ -30,6 +32,8 @@ class ShareScreen extends ConsumerWidget {
     final connectedDevices = ref.watch(connectedDevicesProvider);
     final sharingState = ref.watch(audioSharingStateProvider);
     final sharingDuration = ref.watch(sharingDurationProvider);
+    final activeMode = ref.watch(activeSharingModeProvider);
+    final peersCount = ref.watch(connectedPeersCountProvider).valueOrNull ?? 0;
 
     final btEnabled = btAdapterState.valueOrNull == BluetoothAdapterState.on;
 
@@ -51,8 +55,23 @@ class ShareScreen extends ConsumerWidget {
                   children: [
                     const SizedBox(height: 8),
 
+                    // ── Smart Audio Sharing Mode Selector ────
+                    const AudioModeSelectorCard(),
+
+                    const SizedBox(height: 14),
+
+                    // Universal Peer Share Invite Card
+                    if (activeMode == AudioSharingMode.universalPeerShare) ...[
+                      _PeerShareInviteBanner(
+                        isSharing: sharingState == AudioSharingState.sharing,
+                        peersCount: peersCount,
+                        onOpenQr: () => PeerSharingQrDialog.show(context),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
                     // Bluetooth off / no permission banner
-                    if (!btEnabled)
+                    if (!btEnabled && activeMode != AudioSharingMode.universalPeerShare)
                       _BluetoothOffBanner(
                         onEnable: () async {
                           try {
@@ -61,14 +80,16 @@ class ShareScreen extends ConsumerWidget {
                         },
                       ),
 
-                    if (btEnabled) ...[
+                    if (btEnabled || activeMode == AudioSharingMode.universalPeerShare) ...[
                       // Audio Source card (This Phone)
                       ConnectedAudioCard(
                         deviceType: BluetoothDeviceType.phone,
                         deviceName: connectedDevices.isNotEmpty
                             ? 'Streaming to ${connectedDevices.length} ${connectedDevices.length == 1 ? 'headphone' : 'headphones'}'
-                            : 'This Phone (Media Audio)',
-                        isConnected: btEnabled,
+                            : (activeMode == AudioSharingMode.universalPeerShare
+                                ? 'This Phone (Wi-Fi Broadcast)'
+                                : 'This Phone (Media Audio)'),
+                        isConnected: btEnabled || activeMode == AudioSharingMode.universalPeerShare,
                       ),
 
                       const SizedBox(height: 14),
@@ -577,4 +598,117 @@ class _DualAudioQuickBar extends ConsumerWidget {
     );
   }
 }
+
+// ──────────────────────────────────────────────
+// Universal Peer Share Invite Banner
+// ──────────────────────────────────────────────
+
+class _PeerShareInviteBanner extends StatelessWidget {
+  const _PeerShareInviteBanner({
+    required this.isSharing,
+    required this.peersCount,
+    required this.onOpenQr,
+  });
+
+  final bool isSharing;
+  final int peersCount;
+  final VoidCallback onOpenQr;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isSharing
+              ? [
+                  const Color(0xFF10B981).withOpacity(0.18),
+                  const Color(0xFF059669).withOpacity(0.08),
+                ]
+              : [
+                  AppColors.purple.withOpacity(0.15),
+                  AppColors.blue.withOpacity(0.08),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isSharing
+              ? const Color(0xFF10B981).withOpacity(0.4)
+              : AppColors.purpleLight.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isSharing
+                  ? const Color(0xFF10B981).withOpacity(0.2)
+                  : AppColors.purple.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isSharing ? Icons.podcasts_rounded : Icons.qr_code_2_rounded,
+              color: isSharing ? const Color(0xFF32D583) : AppColors.purpleLight,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isSharing
+                      ? (peersCount > 0
+                          ? '$peersCount Friend${peersCount > 1 ? 's' : ''} Listening in Sync'
+                          : 'Live Wi-Fi Stream Broadcasting')
+                      : 'Share Audio with Any Friend',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isSharing
+                      ? 'Tap to show QR code or share link'
+                      : 'Zero data • Works on 100% of phones',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? const Color(0xFFA09EAE) : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () {
+              AppHaptics.light();
+              onOpenQr();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isSharing ? const Color(0xFF10B981) : AppColors.purple,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            child: Text(
+              isSharing ? 'QR Code' : 'Invite',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 

@@ -56,6 +56,15 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Internal Native A2DP Dual Routing Diagnostic Activity (Non-exported for Play Store) -->
+        <activity
+            android:name=".A2dpTestActivity"
+            android:label="A2DP Routing Diagnostic"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|keyboardHidden|screenSize|uiMode"
+            android:exported="false" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
