@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 
 /// Shimmer skeleton loader for loading states.
-class SkeletonLoader extends StatefulWidget {
+/// Uses the `shimmer` package for smooth, performant shimmer effects.
+class SkeletonLoader extends StatelessWidget {
   const SkeletonLoader({
     super.key,
     required this.width,
@@ -15,63 +17,20 @@ class SkeletonLoader extends StatefulWidget {
   final double borderRadius;
 
   @override
-  State<SkeletonLoader> createState() => _SkeletonLoaderState();
-}
-
-class _SkeletonLoaderState extends State<SkeletonLoader>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
-
-    _animation = Tween<double>(begin: -1.5, end: 1.5).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, _) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, 0),
-              end: Alignment(_animation.value + 1, 0),
-              colors: isDark
-                  ? [
-                      const Color(0xFF1F1D2F),
-                      const Color(0xFF2E2B42),
-                      const Color(0xFF1F1D2F),
-                    ]
-                  : [
-                      AppColors.cardBorder.withValues(alpha: 0.3),
-                      Colors.white.withValues(alpha: 0.8),
-                      AppColors.cardBorder.withValues(alpha: 0.3),
-                    ],
-            ),
-          ),
-        );
-      },
+    return Shimmer.fromColors(
+      baseColor: isDark ? const Color(0xFF1F1D2F) : AppColors.cardBorder.withValues(alpha: 0.3),
+      highlightColor: isDark ? const Color(0xFF2E2B42) : Colors.white.withValues(alpha: 0.8),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+      ),
     );
   }
 }

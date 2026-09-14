@@ -206,6 +206,17 @@ class MainActivity : FlutterActivity() {
 
     private fun openMediaOutputSelector(): Boolean {
         return try {
+            // If Samsung, attempt to open Samsung Media Output panel directly
+            if (Build.MANUFACTURER.contains("samsung", ignoreCase = true)) {
+                try {
+                    val samsungIntent = Intent("com.samsung.android.setting.MEDIA_OUTPUT").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(samsungIntent)
+                    return true
+                } catch (_: Exception) {}
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val intent = Intent("android.settings.panel.action.MEDIA_OUTPUT").apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -296,21 +307,49 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun checkAudioSharingCapability(): Map<String, Any> {
-        val canShare: Boolean
-        val reason: String
+        val isSamsung = Build.MANUFACTURER.contains("samsung", ignoreCase = true)
+        var isLeAudioSupported = false
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            canShare = true
-            reason = "android_audio_routing"
-        } else {
-            canShare = true
-            reason = "legacy_audio_routing"
+        // Check for LE Audio Broadcast capability on Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                val btManager = getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+                val adapter = btManager?.adapter
+                if (adapter != null) {
+                    val method = adapter.javaClass.getMethod("isLeAudioBroadcastSourceSupported")
+                    val result = method.invoke(adapter) as? Int
+                    // BluetoothStatusCodes.FEATURE_SUPPORTED == 10
+                    isLeAudioSupported = (result == 10)
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Also check if any connected output is a BLE headset/speaker/broadcast
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                if (outputs.any { it.type == 26 || it.type == 27 || it.type == 30 }) {
+                    isLeAudioSupported = true
+                }
+            } catch (_: Exception) {}
+        }
+
+        val recommendedMode = when {
+            isSamsung -> "samsung_dual_audio"
+            isLeAudioSupported -> "auracast_broadcast"
+            else -> "universal_peer_share"
         }
 
         return mapOf(
-            "canShare" to canShare,
-            "reason" to reason,
-            "androidVersion" to Build.VERSION.SDK_INT
+            "canShare" to true,
+            "reason" to "multi_mode_ready",
+            "androidVersion" to Build.VERSION.SDK_INT,
+            "deviceManufacturer" to Build.MANUFACTURER,
+            "deviceModel" to Build.MODEL,
+            "hasSamsungDualAudio" to isSamsung,
+            "hasLeAudioBroadcast" to isLeAudioSupported,
+            "recommendedMode" to recommendedMode
         )
     }
 

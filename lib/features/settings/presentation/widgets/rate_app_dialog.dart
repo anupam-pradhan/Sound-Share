@@ -1,19 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:in_app_review/in_app_review.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 
-/// Modal dialog allowing users to rate SoundShare on the Google Play Store.
+/// Rate SoundShare using the native Google Play in-app review API.
+/// Falls back to opening the Play Store listing if in-app review is unavailable.
 class RateAppDialog extends StatefulWidget {
   const RateAppDialog({super.key});
 
-  static void show(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const RateAppDialog(),
-    );
+  /// Attempts native in-app review first. Shows custom dialog as fallback.
+  static Future<void> show(BuildContext context) async {
+    final inAppReview = InAppReview.instance;
+    try {
+      if (await inAppReview.isAvailable()) {
+        // Native Google Play in-app review popup — best UX
+        await inAppReview.requestReview();
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback: show custom dialog that opens Play Store
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => const RateAppDialog(),
+      );
+    }
+  }
+
+  /// Open Play Store listing directly
+  static Future<void> _openPlayStore() async {
+    const playStoreUrl =
+        'https://play.google.com/store/apps/details?id=com.soundshare.soundshare';
+    try {
+      await launchUrl(
+        Uri.parse(playStoreUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {}
   }
 
   @override
@@ -29,9 +56,7 @@ class _RateAppDialogState extends State<RateAppDialog> {
     setState(() => _submitted = true);
 
     // Open Play Store for rating
-    try {
-      const MethodChannel('com.soundshare/audio').invokeMethod('openPlayStore');
-    } catch (_) {}
+    await RateAppDialog._openPlayStore();
 
     await Future.delayed(const Duration(milliseconds: 1400));
     if (mounted) Navigator.of(context).pop();
