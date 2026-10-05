@@ -78,7 +78,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - your-email@example.com
+          - anupampradhan161@gmail.com
         notify:
           success: true
           failure: true
@@ -125,5 +125,8 @@ workflows:
 
     publishing:
       email:
+        recipients:
+          - anupampradhan161@gmail.com
         notify:
+          success: false
           failure: true
