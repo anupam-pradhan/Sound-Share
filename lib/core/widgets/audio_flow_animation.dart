@@ -136,68 +136,73 @@ class _AudioFlowAnimationState extends State<AudioFlowAnimation>
   }
 
   Widget _buildDeviceBadge(BluetoothDeviceModel? dev, String label, {String? badge}) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              decoration: dev != null
-                  ? BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: widget.isSharing
-                          ? [
-                              BoxShadow(
-                                color: AppColors.success.withValues(alpha: 0.35),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : [],
-                    )
-                  : null,
-              child: BluetoothDeviceIcon(
-                type: dev?.type ?? BluetoothDeviceType.headphones,
-                size: 26,
-                isConnected: dev != null,
+    return SizedBox(
+      width: 56,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 400),
+                decoration: dev != null
+                    ? BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: widget.isSharing
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.success.withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : [],
+                      )
+                    : null,
+                child: BluetoothDeviceIcon(
+                  type: dev?.type ?? BluetoothDeviceType.headphones,
+                  size: 26,
+                  isConnected: dev != null,
+                ),
               ),
-            ),
-            if (badge != null)
-              Positioned(
-                top: -4,
-                right: -6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.purple,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    badge,
-                    style: const TextStyle(
-                      fontSize: 7,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+              if (badge != null)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.purple,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        fontSize: 7,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 9,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w500,
+            ],
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 9,
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 

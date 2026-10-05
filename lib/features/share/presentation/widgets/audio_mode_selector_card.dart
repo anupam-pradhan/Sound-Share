@@ -29,8 +29,8 @@ class AudioModeSelectorCard extends ConsumerWidget {
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withOpacity(0.3)
-                : AppColors.purple.withOpacity(0.06),
+                ? Colors.black.withValues(alpha: 0.3)
+                : AppColors.purple.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -45,7 +45,7 @@ class AudioModeSelectorCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.purple.withOpacity(0.12),
+                  color: AppColors.purple.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -90,22 +90,22 @@ class AudioModeSelectorCard extends ConsumerWidget {
               _buildModeTab(
                 context: context,
                 ref: ref,
-                mode: AudioSharingMode.universalPeerShare,
+                mode: AudioSharingMode.samsungDualAudio,
                 activeMode: activeMode,
                 recommendedMode: recommendedMode,
-                icon: Icons.wifi_tethering_rounded,
-                label: 'Universal',
+                icon: Icons.headphones_rounded,
+                label: 'Dual BT',
                 isDark: isDark,
               ),
               const SizedBox(width: 8),
               _buildModeTab(
                 context: context,
                 ref: ref,
-                mode: AudioSharingMode.samsungDualAudio,
+                mode: AudioSharingMode.universalPeerShare,
                 activeMode: activeMode,
                 recommendedMode: recommendedMode,
-                icon: Icons.phone_android_rounded,
-                label: 'Samsung',
+                icon: Icons.wifi_tethering_rounded,
+                label: 'Universal',
                 isDark: isDark,
               ),
               const SizedBox(width: 8),
@@ -158,8 +158,8 @@ class AudioModeSelectorCard extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: activeMode == recommendedMode
-                            ? const Color(0xFF12B76A).withOpacity(0.15)
-                            : AppColors.purple.withOpacity(0.12),
+                            ? const Color(0xFF12B76A).withValues(alpha: 0.15)
+                            : AppColors.purple.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -203,7 +203,7 @@ class AudioModeSelectorCard extends ConsumerWidget {
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.purpleLight,
-                        side: BorderSide(color: AppColors.purpleLight.withOpacity(0.5)),
+                        side: BorderSide(color: AppColors.purpleLight.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
@@ -248,7 +248,7 @@ class AudioModeSelectorCard extends ConsumerWidget {
               color: isSelected
                   ? Colors.transparent
                   : (isRecommended
-                      ? const Color(0xFF12B76A).withOpacity(0.5)
+                      ? const Color(0xFF12B76A).withValues(alpha: 0.5)
                       : Colors.transparent),
               width: 1,
             ),
@@ -283,7 +283,7 @@ class AudioModeSelectorCard extends ConsumerWidget {
 
   IconData _getModeIcon(AudioSharingMode mode) {
     return switch (mode) {
-      AudioSharingMode.samsungDualAudio => Icons.phone_android_rounded,
+      AudioSharingMode.samsungDualAudio => Icons.headphones_rounded,
       AudioSharingMode.auracastBroadcast => Icons.podcasts_rounded,
       AudioSharingMode.universalPeerShare => Icons.wifi_tethering_rounded,
     };
@@ -292,11 +292,11 @@ class AudioModeSelectorCard extends ConsumerWidget {
   String _getModeDescription(AudioSharingMode mode) {
     return switch (mode) {
       AudioSharingMode.samsungDualAudio =>
-        'Plays audio directly from your Samsung phone to 2 connected Bluetooth headphones simultaneously using Samsung One UI Dual Audio.',
+        'Direct synchronized audio streaming from this phone to 2 connected Bluetooth headphones simultaneously on Samsung, Pixel, Xiaomi, OnePlus & Android devices.',
       AudioSharingMode.auracastBroadcast =>
         'Directly broadcasts high-efficiency LC3 audio to any nearby Auracast or Bluetooth LE Audio earbuds without requiring a second phone.',
       AudioSharingMode.universalPeerShare =>
-        'Works on 100% of smartphones (Pixel, Motorola, Xiaomi, OnePlus, etc.). Streams in real time over local Wi-Fi / Hotspot with zero mobile data.',
+        'Works on 100% of smartphones. Streams in real time over local Wi-Fi / Hotspot with zero mobile data to friends listening in web browsers.',
     };
   }
 }

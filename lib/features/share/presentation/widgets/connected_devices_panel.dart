@@ -7,7 +7,7 @@ import 'package:soundshare/core/widgets/audio_flow_animation.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
-import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
+import 'dual_headphone_setup_sheet.dart';
 
 /// Panel managing connected headphones for synchronized Dual Headphone audio sharing.
 class ConnectedDevicesPanel extends ConsumerWidget {
@@ -306,7 +306,7 @@ class ConnectedDevicesPanel extends ConsumerWidget {
           ElevatedButton.icon(
             onPressed: () {
               HapticFeedback.lightImpact();
-              ref.read(audioSharingServiceProvider).openBluetoothSettings();
+              DualHeadphoneSetupSheet.show(context);
             },
             icon: const Icon(Icons.settings_bluetooth_rounded, size: 16),
             label: const Text('Pair Headphones'),
@@ -511,7 +511,7 @@ class ConnectedDevicesPanel extends ConsumerWidget {
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
-        ref.read(audioSharingServiceProvider).openBluetoothSettings();
+        DualHeadphoneSetupSheet.show(context);
       },
       borderRadius: BorderRadius.circular(14),
       child: Container(
@@ -554,7 +554,7 @@ class ConnectedDevicesPanel extends ConsumerWidget {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Pair your friend\'s headphones to share audio together',
+                    'Tap for phone-specific dual audio setup & pairing',
                     style: TextStyle(
                       fontSize: 10,
                       color: AppColors.textSecondary,
@@ -576,35 +576,64 @@ class ConnectedDevicesPanel extends ConsumerWidget {
 
   Widget _buildDualAudioHint(
       BuildContext context, WidgetRef ref, bool isDark) {
+    final String hintText;
+    final IconData hintIcon;
+    final Color iconColor;
+
+    if (_isSharing) {
+      hintText = _count >= 2
+          ? 'Synchronized streaming active on both headphones.'
+          : 'Live audio streaming active on 1 headphone.';
+      hintIcon = Icons.sensors_rounded;
+      iconColor = AppColors.success;
+    } else if (_count >= 2) {
+      hintText = 'Dual Audio ready. Tap for phone-specific Media Output settings.';
+      hintIcon = Icons.speaker_group_rounded;
+      iconColor = AppColors.purple;
+    } else if (_count == 1) {
+      hintText = 'Connect a 2nd headphone below to listen together.';
+      hintIcon = Icons.headphones_rounded;
+      iconColor = AppColors.blue;
+    } else {
+      hintText = 'Turn on Bluetooth headphones or tap to open pairing setup.';
+      hintIcon = Icons.bluetooth_audio_rounded;
+      iconColor = AppColors.textMuted;
+    }
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+        DualHeadphoneSetupSheet.show(context);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF161524) : const Color(0xFFF3F2F8),
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? const Color(0xFF26243A) : const Color(0xFFE6E4F0),
+            width: 0.8,
+          ),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Icon(
-              Icons.info_outline_rounded,
+              hintIcon,
               size: 15,
-              color: AppColors.textMuted,
+              color: iconColor,
             ),
-            SizedBox(width: 6),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Dual Audio routing active. Tap here to select Media Outputs.',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textMuted,
+                hintText,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            Icon(
+            const Icon(
               Icons.arrow_forward_ios_rounded,
               size: 10,
               color: AppColors.textMuted,

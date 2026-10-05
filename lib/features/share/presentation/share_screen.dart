@@ -17,6 +17,7 @@ import 'widgets/connected_devices_panel.dart';
 import 'widgets/share_audio_button.dart';
 import 'widgets/audio_mode_selector_card.dart';
 import 'widgets/peer_sharing_qr_dialog.dart';
+import 'widgets/dual_headphone_setup_sheet.dart';
 // [COMMENTED OUT - BeatSyncCard disabled per SoundShare-only configuration]
 // import '../../beatsync/presentation/widgets/beatsync_card.dart';
 import '../../../core/widgets/theme_toggle_button.dart';
@@ -84,12 +85,12 @@ class ShareScreen extends ConsumerWidget {
                       // Audio Source card (This Phone)
                       ConnectedAudioCard(
                         deviceType: BluetoothDeviceType.phone,
-                        deviceName: connectedDevices.isNotEmpty
-                            ? 'Streaming to ${connectedDevices.length} ${connectedDevices.length == 1 ? 'headphone' : 'headphones'}'
-                            : (activeMode == AudioSharingMode.universalPeerShare
-                                ? 'This Phone (Wi-Fi Broadcast)'
-                                : 'This Phone (Media Audio)'),
+                        deviceName: activeMode == AudioSharingMode.universalPeerShare
+                            ? 'This Phone (Wi-Fi Broadcast)'
+                            : 'This Phone (Media Audio)',
                         isConnected: btEnabled || activeMode == AudioSharingMode.universalPeerShare,
+                        isSharing: sharingState == AudioSharingState.sharing,
+                        connectedDevicesCount: connectedDevices.length,
                       ),
 
                       const SizedBox(height: 14),
@@ -111,6 +112,7 @@ class ShareScreen extends ConsumerWidget {
                       _BluetoothDevicesSection(
                         isScanning: isScanning.valueOrNull ?? false,
                         devices: discoveredDevices,
+                        connectedDevices: connectedDevices,
                         onScan: () {
                           if (isScanning.valueOrNull == true) {
                             ref
@@ -210,22 +212,51 @@ class _BluetoothDevicesSection extends StatelessWidget {
   const _BluetoothDevicesSection({
     required this.isScanning,
     required this.devices,
+    required this.connectedDevices,
     required this.onScan,
   });
 
   final bool isScanning;
   final List<dynamic> devices;
+  final List<BluetoothDeviceModel> connectedDevices;
   final VoidCallback onScan;
+
+  String _normalizeDeviceName(String name) {
+    return name
+        .replaceAll(RegExp(r'\s*\((?:left|right|l|r)\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'[_\-](?:left|right|l|r)$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s+(?:left|right|l|r)$', caseSensitive: false), '')
+        .trim();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final namedDevices = devices
-        .where((d) =>
-            d.name != null &&
-            (d.name as String).trim().isNotEmpty &&
-            (d.name as String).toLowerCase() != 'unknown device' &&
-            !(d.name as String).toLowerCase().startsWith('unknown'))
-        .toList();
+    final connectedIds = connectedDevices.map((c) => c.id).toSet();
+    final connectedNames = connectedDevices
+        .map((c) => _normalizeDeviceName(c.name).toLowerCase())
+        .toSet();
+
+    final availableDevices = <BluetoothDeviceModel>[];
+    for (final raw in devices) {
+      if (raw is! BluetoothDeviceModel) continue;
+      final name = raw.name.trim();
+      if (name.isEmpty ||
+          name.toLowerCase() == 'unknown device' ||
+          name.toLowerCase().startsWith('unknown')) {
+        continue;
+      }
+      final normName = _normalizeDeviceName(name).toLowerCase();
+      // Skip if already connected (actively shown in ConnectedDevicesPanel above)
+      if (connectedIds.contains(raw.id) || connectedNames.contains(normName)) {
+        continue;
+      }
+      // Deduplicate inside available list
+      if (!availableDevices.any((ex) =>
+          ex.id == raw.id ||
+          _normalizeDeviceName(ex.name).toLowerCase() == normName)) {
+        availableDevices.add(raw);
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +264,25 @@ class _BluetoothDevicesSection extends StatelessWidget {
         // Section header
         Row(
           children: [
-            Text('Bluetooth devices', style: AppTextStyles.headingSmall),
+            Text('Available devices', style: AppTextStyles.headingSmall),
+            if (availableDevices.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${availableDevices.length}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.purple,
+                  ),
+                ),
+              ),
+            ],
             const Spacer(),
             GestureDetector(
               onTap: () {
@@ -263,13 +312,13 @@ class _BluetoothDevicesSection extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Device list (only show real named devices)
-        if (namedDevices.isEmpty && !isScanning)
-          _EmptyDevicesCard()
+        // Device list (only show real un-connected devices)
+        if (availableDevices.isEmpty && !isScanning)
+          _EmptyDevicesCard(hasConnected: connectedDevices.isNotEmpty)
         else ...[
-          for (int i = 0; i < namedDevices.length; i++)
+          for (int i = 0; i < availableDevices.length; i++)
             BluetoothDeviceCard(
-              device: namedDevices[i] as dynamic,
+              device: availableDevices[i],
               animationDelay: Duration(milliseconds: i * 80),
             ),
         ],
@@ -284,6 +333,9 @@ class _BluetoothDevicesSection extends StatelessWidget {
 }
 
 class _EmptyDevicesCard extends ConsumerWidget {
+  const _EmptyDevicesCard({this.hasConnected = false});
+  final bool hasConnected;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -299,14 +351,16 @@ class _EmptyDevicesCard extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.bluetooth_audio_rounded,
+          Icon(
+            hasConnected ? Icons.check_circle_outline_rounded : Icons.bluetooth_audio_rounded,
             size: 36,
-            color: AppColors.purple,
+            color: hasConnected ? AppColors.success : AppColors.purple,
           ),
           const SizedBox(height: 10),
           Text(
-            'No paired audio devices found nearby',
+            hasConnected
+                ? 'All paired headphones are active above'
+                : 'No paired audio devices found nearby',
             style: AppTextStyles.headingSmall.copyWith(
               color: AppColors.textPrimary,
               fontSize: 14,
@@ -315,7 +369,9 @@ class _EmptyDevicesCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Put your Bluetooth headphones in pairing mode or connect them in Settings.',
+            hasConnected
+                ? 'To connect a 2nd headphone, put it in pairing mode and pair in Settings.'
+                : 'Put your Bluetooth headphones in pairing mode or connect them in Settings.',
             style: AppTextStyles.bodyMedium,
             textAlign: TextAlign.center,
           ),
@@ -326,7 +382,7 @@ class _EmptyDevicesCard extends ConsumerWidget {
               ref.read(audioSharingServiceProvider).openBluetoothSettings();
             },
             icon: const Icon(Icons.settings_bluetooth_rounded, size: 16),
-            label: const Text('Pair in Bluetooth Settings'),
+            label: Text(hasConnected ? 'Pair Another Headphone' : 'Pair in Bluetooth Settings'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.purple,
               side: BorderSide(
@@ -574,7 +630,7 @@ class _DualAudioQuickBar extends ConsumerWidget {
             child: GestureDetector(
               onTap: () {
                 AppHaptics.light();
-                ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+                DualHeadphoneSetupSheet.show(context);
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -624,12 +680,12 @@ class _PeerShareInviteBanner extends StatelessWidget {
         gradient: LinearGradient(
           colors: isSharing
               ? [
-                  const Color(0xFF10B981).withOpacity(0.18),
-                  const Color(0xFF059669).withOpacity(0.08),
+                  const Color(0xFF10B981).withValues(alpha: 0.18),
+                  const Color(0xFF059669).withValues(alpha: 0.08),
                 ]
               : [
-                  AppColors.purple.withOpacity(0.15),
-                  AppColors.blue.withOpacity(0.08),
+                  AppColors.purple.withValues(alpha: 0.15),
+                  AppColors.blue.withValues(alpha: 0.08),
                 ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -637,8 +693,8 @@ class _PeerShareInviteBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isSharing
-              ? const Color(0xFF10B981).withOpacity(0.4)
-              : AppColors.purpleLight.withOpacity(0.3),
+              ? const Color(0xFF10B981).withValues(alpha: 0.4)
+              : AppColors.purpleLight.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -647,8 +703,8 @@ class _PeerShareInviteBanner extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: isSharing
-                  ? const Color(0xFF10B981).withOpacity(0.2)
-                  : AppColors.purple.withOpacity(0.2),
+                  ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                  : AppColors.purple.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(

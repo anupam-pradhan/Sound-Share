@@ -4,6 +4,16 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'bluetooth_device_model.dart' as model;
 
+/// Normalizes Bluetooth device names by removing channel suffixes (e.g. "(L)", "(R)", " Left", " Right")
+/// to prevent TWS earbuds from showing twice.
+String _normalizeDeviceName(String name) {
+  return name
+      .replaceAll(RegExp(r'\s*\((?:left|right|l|r)\)', caseSensitive: false), '')
+      .replaceAll(RegExp(r'[_\-](?:left|right|l|r)$', caseSensitive: false), '')
+      .replaceAll(RegExp(r'\s+(?:left|right|l|r)$', caseSensitive: false), '')
+      .trim();
+}
+
 // ──────────────────────────────────────────────
 // Bluetooth Adapter State
 // ──────────────────────────────────────────────
@@ -62,10 +72,18 @@ class DiscoveredDevicesNotifier
               continue;
             }
 
+            final normName = _normalizeDeviceName(name).toLowerCase();
+            final isAlreadyInList = list.any((d) =>
+                (addr.isNotEmpty && d.id == addr) ||
+                _normalizeDeviceName(d.name).toLowerCase() == normName);
+            if (isAlreadyInList) {
+              continue;
+            }
+
             final isAlreadyConnected = isConnected ||
                 currentConnected.any((c) =>
                     (addr.isNotEmpty && c.id == addr) ||
-                    c.name.toLowerCase() == name.toLowerCase());
+                    _normalizeDeviceName(c.name).toLowerCase() == normName);
 
             list.add(model.BluetoothDeviceModel(
               id: addr.isNotEmpty ? addr : name,
@@ -293,6 +311,15 @@ class ConnectedDevicesNotifier
                 typeStr.contains('bluetooth') ||
                 typeStr.contains('headphone') ||
                 typeStr.contains('headset')) {
+              final normName = _normalizeDeviceName(name).toLowerCase();
+              final isAlreadyInActiveList = activeList.any((d) =>
+                  (address.isNotEmpty && d.id == address) ||
+                  _normalizeDeviceName(d.name).toLowerCase() == normName);
+
+              if (isAlreadyInActiveList) {
+                continue;
+              }
+
               model.BluetoothDeviceType dType = model.BluetoothDeviceType.headphones;
               final lower = name.toLowerCase();
               if (lower.contains('bud') || lower.contains('pod')) {
@@ -303,7 +330,10 @@ class ConnectedDevicesNotifier
 
               // Retain volume/mute if already known
               final existing = state.firstWhere(
-                (d) => d.id == id || (address.isNotEmpty && d.id == address) || d.name == name,
+                (d) =>
+                    d.id == id ||
+                    (address.isNotEmpty && d.id == address) ||
+                    _normalizeDeviceName(d.name).toLowerCase() == normName,
                 orElse: () => model.BluetoothDeviceModel(
                   id: address.isNotEmpty ? address : id,
                   name: name,
@@ -335,7 +365,10 @@ class ConnectedDevicesNotifier
       return;
     }
 
-    if (!state.any((d) => d.id == device.id || d.name == device.name)) {
+    final normName = _normalizeDeviceName(device.name).toLowerCase();
+    if (!state.any((d) =>
+        d.id == device.id ||
+        _normalizeDeviceName(d.name).toLowerCase() == normName)) {
       state = [
         ...state,
         device.copyWith(

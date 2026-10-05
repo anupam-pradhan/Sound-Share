@@ -55,10 +55,10 @@ class PeerSharingQrDialog extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF12B76A).withOpacity(0.15),
+                  color: const Color(0xFF12B76A).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF12B76A).withOpacity(0.4),
+                    color: const Color(0xFF12B76A).withValues(alpha: 0.4),
                   ),
                 ),
                 child: Row(
@@ -236,7 +236,7 @@ class PeerSharingQrDialog extends ConsumerWidget {
           height: 22,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: AppColors.purple.withOpacity(0.18),
+            color: AppColors.purple.withValues(alpha: 0.18),
             shape: BoxShape.circle,
           ),
           child: Text(

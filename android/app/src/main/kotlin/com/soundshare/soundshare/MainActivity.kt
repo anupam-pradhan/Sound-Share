@@ -11,6 +11,7 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.net.Uri
@@ -45,6 +46,7 @@ class MainActivity : FlutterActivity() {
     private val audioTracks = mutableListOf<AudioTrack>()
     private var isPlayingAudio = false
     private var playbackThread: Thread? = null
+    private var audioFocusRequest: Any? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -139,6 +141,9 @@ class MainActivity : FlutterActivity() {
                     "openBluetoothSettings" -> {
                         result.success(openBluetoothSettings())
                     }
+                    "openDeveloperSettings" -> {
+                        result.success(openDeveloperSettings())
+                    }
                     "openMediaOutputSelector" -> {
                         result.success(openMediaOutputSelector())
                     }
@@ -229,6 +234,26 @@ class MainActivity : FlutterActivity() {
             }
         } catch (_: Exception) {
             openBluetoothSettings()
+        }
+    }
+
+    private fun openDeveloperSettings(): Boolean {
+        return try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            true
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(Settings.ACTION_DEVICE_INFO_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+                true
+            } catch (_: Exception) {
+                openBluetoothSettings()
+            }
         }
     }
 
@@ -338,7 +363,7 @@ class MainActivity : FlutterActivity() {
         val recommendedMode = when {
             isSamsung -> "samsung_dual_audio"
             isLeAudioSupported -> "auracast_broadcast"
-            else -> "universal_peer_share"
+            else -> "samsung_dual_audio" // Direct Dual Bluetooth Audio routing on all Android devices
         }
 
         return mapOf(
@@ -351,6 +376,18 @@ class MainActivity : FlutterActivity() {
             "hasLeAudioBroadcast" to isLeAudioSupported,
             "recommendedMode" to recommendedMode
         )
+    }
+
+    /**
+     * Normalizes device names by removing channel suffixes (e.g. "(L)", "(R)", " Left", " Right")
+     * so that TWS earbuds are not displayed or counted twice.
+     */
+    private fun normalizeAudioDeviceName(name: String): String {
+        return name
+            .replace(Regex("(?i)\\s*\\((?:left|right|l|r)\\)"), "")
+            .replace(Regex("(?i)[_\\-](?:left|right|l|r)$"), "")
+            .replace(Regex("(?i)\\s+(?:left|right|l|r)$"), "")
+            .trim()
     }
 
     private fun getAudioOutputDevices(): List<Map<String, Any>> {
@@ -376,22 +413,69 @@ class MainActivity : FlutterActivity() {
                         device.type == 26 || device.type == 27 || device.type == 30
 
                 val pName = device.productName?.toString() ?: ""
+                val devAddr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) device.address ?: "" else ""
+
                 // Only include named audio devices or bluetooth
-                if (pName.trim().isNotEmpty() && !pName.equals("Unknown Device", ignoreCase = true)) {
-                    devices.add(
-                        mapOf(
-                            "id" to device.id.toString(),
-                            "type" to typeName,
-                            "typeCode" to device.type,
-                            "productName" to pName,
-                            "address" to (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) device.address ?: "" else ""),
-                            "isBluetooth" to isBt,
-                            "isConnected" to true
+                if (pName.trim().isNotEmpty() &&
+                    !pName.equals("Unknown Device", ignoreCase = true) &&
+                    !pName.startsWith("Unknown", ignoreCase = true)) {
+
+                    // Deduplicate so Left & Right earbuds of the same pair don't show twice
+                    val isDuplicate = isBt && devices.any { existing ->
+                        val exAddr = existing["address"] as? String ?: ""
+                        val exName = existing["productName"] as? String ?: ""
+                        (devAddr.isNotEmpty() && exAddr.isNotEmpty() && exAddr.equals(devAddr, ignoreCase = true)) ||
+                                normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                    }
+
+                    if (!isDuplicate) {
+                        devices.add(
+                            mapOf(
+                                "id" to device.id.toString(),
+                                "type" to typeName,
+                                "typeCode" to device.type,
+                                "productName" to pName,
+                                "address" to devAddr,
+                                "isBluetooth" to isBt,
+                                "isConnected" to true
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
+
+        // Cross-reference with A2DP profile proxy to detect second connected Bluetooth headphone
+        try {
+            a2dpProfile?.connectedDevices?.forEach { btDev ->
+                val name = btDev.name ?: ""
+                val addr = btDev.address ?: ""
+                if (name.trim().isNotEmpty() &&
+                    !name.equals("Unknown Device", ignoreCase = true) &&
+                    !name.startsWith("Unknown", ignoreCase = true)) {
+
+                    val alreadyAdded = devices.any {
+                        val dAddr = it["address"] as? String ?: ""
+                        val dName = it["productName"] as? String ?: ""
+                        (addr.isNotEmpty() && dAddr.equals(addr, ignoreCase = true)) ||
+                                normalizeAudioDeviceName(dName).equals(normalizeAudioDeviceName(name), ignoreCase = true)
+                    }
+                    if (!alreadyAdded) {
+                        devices.add(
+                            mapOf(
+                                "id" to if (addr.isNotEmpty()) addr else name,
+                                "type" to "bluetooth_a2dp",
+                                "typeCode" to AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                                "productName" to name,
+                                "address" to addr,
+                                "isBluetooth" to true,
+                                "isConnected" to true
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {}
 
         return devices
     }
@@ -496,55 +580,92 @@ class MainActivity : FlutterActivity() {
             val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             val bufferSize = (minBufferSize * 2).coerceAtLeast(4096)
 
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
             try {
-                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                // 1. Request Audio Focus so Android OS routes audio to SoundShare
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val afr = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                            .setAudioAttributes(
+                                AudioAttributes.Builder()
+                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                    .build()
+                            )
+                            .setOnAudioFocusChangeListener { /* maintain continuous playback */ }
+                            .build()
+                        audioFocusRequest = afr
+                        audioManager.requestAudioFocus(afr)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+                    }
+                } catch (_: Exception) {}
+
+                // 2. Ensure media volume is loud and audible
                 val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                if (currentVol == 0 && maxVol > 0) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (maxVol * 0.6).toInt(), 0)
+                if (currentVol < (maxVol * 0.4).toInt() && maxVol > 0) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (maxVol * 0.7).toInt(), 0)
                 }
 
-                val btOutputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // 3. Find distinct connected Bluetooth outputs (deduplicating Left/Right earbuds)
+                val allOutputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
                         it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
                         it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
                     }
                 } else emptyList()
 
-                // Multi-headphone routing: Create dedicated AudioTrack per Bluetooth device
-                if (btOutputs.isNotEmpty()) {
-                    for (dev in btOutputs) {
-                        try {
-                            val track = AudioTrack.Builder()
-                                .setAudioAttributes(
-                                    AudioAttributes.Builder()
-                                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                        .build()
-                                )
-                                .setAudioFormat(
-                                    AudioFormat.Builder()
-                                        .setEncoding(audioFormat)
-                                        .setSampleRate(sampleRate)
-                                        .setChannelMask(channelConfig)
-                                        .build()
-                                )
-                                .setBufferSizeInBytes(bufferSize)
-                                .setTransferMode(AudioTrack.MODE_STREAM)
-                                .build()
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                track.preferredDevice = dev
-                            }
-                            track.play()
-                            audioTracks.add(track)
-                        } catch (_: Exception) {}
+                val distinctOutputs = mutableListOf<AudioDeviceInfo>()
+                allOutputs.forEach { dev ->
+                    val pName = dev.productName?.toString() ?: ""
+                    val isDup = distinctOutputs.any {
+                        val exName = it.productName?.toString() ?: ""
+                        normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                    }
+                    if (!isDup) {
+                        distinctOutputs.add(dev)
                     }
                 }
 
-                // Fallback default track if no specific BT tracks were created
-                if (audioTracks.isEmpty()) {
+                // 4. Create Primary AudioTrack (Default System Media Route)
+                // This guarantees audio always plays through whatever device is active or cloned by OS
+                val primaryTrack = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(audioFormat)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(channelConfig)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferSize)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && distinctOutputs.isNotEmpty()) {
                     try {
-                        val defaultTrack = AudioTrack.Builder()
+                        primaryTrack.preferredDevice = distinctOutputs[0]
+                    } catch (_: Exception) {}
+                }
+
+                try {
+                    primaryTrack.setVolume(1.0f)
+                    primaryTrack.play()
+                    audioTracks.add(primaryTrack)
+                } catch (_: Exception) {}
+
+                // 5. If a DISTINCT second device is connected, create a dedicated secondary track
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && distinctOutputs.size >= 2) {
+                    try {
+                        val secondaryTrack = AudioTrack.Builder()
                             .setAudioAttributes(
                                 AudioAttributes.Builder()
                                     .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -561,42 +682,63 @@ class MainActivity : FlutterActivity() {
                             .setBufferSizeInBytes(bufferSize)
                             .setTransferMode(AudioTrack.MODE_STREAM)
                             .build()
-                        defaultTrack.play()
-                        audioTracks.add(defaultTrack)
+
+                        secondaryTrack.preferredDevice = distinctOutputs[1]
+                        secondaryTrack.setVolume(1.0f)
+                        secondaryTrack.play()
+                        audioTracks.add(secondaryTrack)
                     } catch (_: Exception) {}
                 }
 
                 val buffer = ShortArray(bufferSize / 2)
-                var phaseL = 0.0
-                var phaseR = 0.0
+                var phase1 = 0.0
+                var phase2 = 0.0
+                var phase3 = 0.0
                 var sampleIndex = 0L
+
+                // Pleasant, clear harmonic chord: A Major triad (A4 = 440 Hz, C#5 = 554.37 Hz, E5 = 659.25 Hz)
+                val freq1 = 440.0
+                val freq2 = 554.37
+                val freq3 = 659.25
 
                 while (isPlayingAudio) {
                     val timeSec = sampleIndex.toDouble() / sampleRate
-                    // Harmonic pulsing chord: Root (220Hz / A3), Fifth (330Hz / E4), Octave (440Hz / A4)
-                    val beatPulse = (sin(2.0 * Math.PI * 1.5 * timeSec) * 0.5 + 0.5) // 1.5 Hz pulse
-                    val freqL = 220.0
-                    val freqR = 330.0
+                    // Rhythmic pulse for audible real-time sharing feedback (1.2 Hz)
+                    val pulse = 0.65 + 0.35 * sin(2.0 * Math.PI * 1.2 * timeSec)
 
                     for (i in 0 until buffer.size step 2) {
-                        phaseL += 2.0 * Math.PI * freqL / sampleRate
-                        phaseR += 2.0 * Math.PI * freqR / sampleRate
-                        if (phaseL > 2.0 * Math.PI) phaseL -= 2.0 * Math.PI
-                        if (phaseR > 2.0 * Math.PI) phaseR -= 2.0 * Math.PI
+                        phase1 += 2.0 * Math.PI * freq1 / sampleRate
+                        phase2 += 2.0 * Math.PI * freq2 / sampleRate
+                        phase3 += 2.0 * Math.PI * freq3 / sampleRate
+                        if (phase1 > 2.0 * Math.PI) phase1 -= 2.0 * Math.PI
+                        if (phase2 > 2.0 * Math.PI) phase2 -= 2.0 * Math.PI
+                        if (phase3 > 2.0 * Math.PI) phase3 -= 2.0 * Math.PI
 
-                        val amp = 0.45 * (0.6 + 0.4 * beatPulse)
-                        val sampleL = (sin(phaseL) * amp * Short.MAX_VALUE).toInt().toShort()
-                        val sampleR = (sin(phaseR) * amp * Short.MAX_VALUE).toInt().toShort()
+                        val sampleVal = ((sin(phase1) * 0.45 + sin(phase2) * 0.35 + sin(phase3) * 0.20) * pulse * 0.75 * Short.MAX_VALUE).toInt().toShort()
 
-                        buffer[i] = sampleL
-                        buffer[i + 1] = sampleR
+                        buffer[i] = sampleVal       // Left channel
+                        buffer[i + 1] = sampleVal   // Right channel
                     }
                     sampleIndex += buffer.size / 2
 
-                    // Stream to all connected headphone tracks synchronously
-                    for (t in audioTracks) {
+                    // Primary track writes in standard blocking mode to anchor 44.1kHz hardware timing
+                    try {
+                        if (primaryTrack.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                            primaryTrack.write(buffer, 0, buffer.size)
+                        }
+                    } catch (_: Exception) {}
+
+                    // Secondary track writes synchronized buffer
+                    for (i in 1 until audioTracks.size) {
+                        val t = audioTracks[i]
                         try {
-                            t.write(buffer, 0, buffer.size)
+                            if (t.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    t.write(buffer, 0, buffer.size, AudioTrack.WRITE_NON_BLOCKING)
+                                } else {
+                                    t.write(buffer, 0, buffer.size)
+                                }
+                            }
                         } catch (_: Exception) {}
                     }
                 }
@@ -612,8 +754,34 @@ class MainActivity : FlutterActivity() {
             } finally {
                 audioTracks.clear()
                 isPlayingAudio = false
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest is AudioFocusRequest) {
+                        audioManager.abandonAudioFocusRequest(audioFocusRequest as AudioFocusRequest)
+                        audioFocusRequest = null
+                    }
+                } catch (_: Exception) {}
             }
         }
+    }
+
+    private fun stopNativeAudioPlayback() {
+        isPlayingAudio = false
+        playbackThread?.interrupt()
+        playbackThread = null
+        for (t in audioTracks) {
+            try {
+                t.stop()
+                t.release()
+            } catch (_: Exception) {}
+        }
+        audioTracks.clear()
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest is AudioFocusRequest) {
+                audioManager.abandonAudioFocusRequest(audioFocusRequest as AudioFocusRequest)
+                audioFocusRequest = null
+            }
+        } catch (_: Exception) {}
     }
 
     private fun setDeviceVolume(address: String, volume: Float) {

@@ -163,6 +163,16 @@ class AndroidAudioSharingService implements AudioSharingService {
     }
   }
 
+  @override
+  Future<bool> openDeveloperSettings() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('openDeveloperSettings');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Start local broadcast server with port fallback and high-fidelity Web Audio receiver.
   Future<void> _startLocalBroadcastServer() async {
     await _stopLocalBroadcastServer();

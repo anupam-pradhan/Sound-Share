@@ -37,7 +37,7 @@ extension AudioSharingModeExtension on AudioSharingMode {
   String get title {
     switch (this) {
       case AudioSharingMode.samsungDualAudio:
-        return 'Samsung Dual Audio';
+        return 'Dual Bluetooth Audio';
       case AudioSharingMode.auracastBroadcast:
         return 'Auracast Broadcast';
       case AudioSharingMode.universalPeerShare:
@@ -48,7 +48,7 @@ extension AudioSharingModeExtension on AudioSharingMode {
   String get subtitle {
     switch (this) {
       case AudioSharingMode.samsungDualAudio:
-        return 'Direct dual Classic Bluetooth output (Samsung One UI)';
+        return 'Direct simultaneous audio stream to 2 Bluetooth headphones';
       case AudioSharingMode.auracastBroadcast:
         return 'Direct broadcast to LE Audio earbuds (Android 13+)';
       case AudioSharingMode.universalPeerShare:
@@ -59,7 +59,7 @@ extension AudioSharingModeExtension on AudioSharingMode {
   String get badgeText {
     switch (this) {
       case AudioSharingMode.samsungDualAudio:
-        return 'SAMSUNG DIRECT';
+        return 'DUAL BLUETOOTH';
       case AudioSharingMode.auracastBroadcast:
         return 'AURACAST LE';
       case AudioSharingMode.universalPeerShare:
@@ -78,7 +78,7 @@ class AudioSharingCapability {
     this.deviceModel = 'Unknown',
     this.hasSamsungDualAudio = false,
     this.hasLeAudioBroadcast = false,
-    this.recommendedMode = AudioSharingMode.universalPeerShare,
+    this.recommendedMode = AudioSharingMode.samsungDualAudio,
   });
 
   final bool canShare;
@@ -98,13 +98,9 @@ class AudioSharingCapability {
 
     final recommendedStr = (map['recommendedMode'] as String?) ?? '';
     final recommendedMode = switch (recommendedStr) {
-      'samsung_dual_audio' => AudioSharingMode.samsungDualAudio,
       'auracast_broadcast' => AudioSharingMode.auracastBroadcast,
-      _ => isSamsung
-          ? AudioSharingMode.samsungDualAudio
-          : isLeAudio
-              ? AudioSharingMode.auracastBroadcast
-              : AudioSharingMode.universalPeerShare,
+      'universal_peer_share' => AudioSharingMode.universalPeerShare,
+      _ => AudioSharingMode.samsungDualAudio,
     };
 
     return AudioSharingCapability(
@@ -160,6 +156,9 @@ abstract class AudioSharingService {
 
   /// Open Android Media Output / Dual Audio switcher.
   Future<bool> openMediaOutputSelector();
+
+  /// Open Android Developer Options (to configure Maximum Connected Bluetooth Audio Devices).
+  Future<bool> openDeveloperSettings();
 
   /// Dispose resources.
   void dispose();
