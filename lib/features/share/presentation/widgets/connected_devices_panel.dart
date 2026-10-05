@@ -7,6 +7,7 @@ import 'package:soundshare/core/widgets/audio_flow_animation.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 import 'dual_headphone_setup_sheet.dart';
 
 /// Panel managing connected headphones for synchronized Dual Headphone audio sharing.
@@ -108,6 +109,11 @@ class ConnectedDevicesPanel extends ConsumerWidget {
             ],
           ],
 
+          if (_count >= 2) ...[
+            const SizedBox(height: 12),
+            _buildDualActionsBar(context, ref, isDark),
+          ],
+
           // Dual Audio OS hint
           const SizedBox(height: 14),
           _buildDualAudioHint(context, ref, isDark),
@@ -149,7 +155,7 @@ class ConnectedDevicesPanel extends ConsumerWidget {
                 const SizedBox(height: 3),
                 Text(
                   _count >= 2
-                      ? 'Streaming synchronized audio to 2 headphones'
+                      ? 'Ready! Play music in Spotify, YouTube or media player.'
                       : 'Connected to 1 headphone (Connect 2nd for dual share)',
                   style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
                 ),
@@ -640,6 +646,112 @@ class ConnectedDevicesPanel extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDualActionsBar(
+      BuildContext context, WidgetRef ref, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1A34) : const Color(0xFFF3F1FD),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.speaker_group_rounded,
+                      size: 16,
+                      color: AppColors.purple,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Media Output Panel',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                          const Text(
+                            'Check both devices to stream music',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color: isDark ? const Color(0xFF332F4C) : const Color(0xFFDCD8F0),
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+          ),
+          InkWell(
+            onTap: () async {
+              HapticFeedback.mediumImpact();
+              await ref.read(audioSharingServiceProvider).playTestChime();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Playing 0.3s test chime on both headphones...'),
+                    duration: Duration(milliseconds: 1200),
+                  ),
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.music_note_rounded,
+                    size: 15,
+                    color: AppColors.blue,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Test Chime',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -173,6 +173,16 @@ class AndroidAudioSharingService implements AudioSharingService {
     }
   }
 
+  @override
+  Future<bool> playTestChime() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('playTestChime');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Start local broadcast server with port fallback and high-fidelity Web Audio receiver.
   Future<void> _startLocalBroadcastServer() async {
     await _stopLocalBroadcastServer();

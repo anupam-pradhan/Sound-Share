@@ -160,6 +160,9 @@ abstract class AudioSharingService {
   /// Open Android Developer Options (to configure Maximum Connected Bluetooth Audio Devices).
   Future<bool> openDeveloperSettings();
 
+  /// Play a brief 0.35s pleasant test chime on all connected outputs to verify dual connection.
+  Future<bool> playTestChime();
+
   /// Dispose resources.
   void dispose();
 }

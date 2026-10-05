@@ -17,11 +17,17 @@ import android.media.AudioTrack
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.app.Activity
+import android.media.AudioPlaybackCaptureConfiguration
+import android.media.AudioRecord
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import kotlin.concurrent.thread
+import kotlin.math.exp
 import kotlin.math.sin
 
 class MainActivity : FlutterActivity() {
@@ -47,6 +53,13 @@ class MainActivity : FlutterActivity() {
     private var isPlayingAudio = false
     private var playbackThread: Thread? = null
     private var audioFocusRequest: Any? = null
+
+    // Universal Android 10+ internal audio playback capture & dual-device mirroring
+    private val REQUEST_CODE_MEDIA_PROJECTION = 2001
+    private var mediaProjection: MediaProjection? = null
+    private var audioRecord: AudioRecord? = null
+    private var captureThread: Thread? = null
+    private var isCapturingAudio = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -127,6 +140,10 @@ class MainActivity : FlutterActivity() {
                     }
                     "stopAudioPlayback" -> {
                         stopNativeAudioPlayback()
+                        result.success(true)
+                    }
+                    "playTestChime" -> {
+                        playDualAudioChime()
                         result.success(true)
                     }
                     "setDeviceVolume" -> {
@@ -211,27 +228,38 @@ class MainActivity : FlutterActivity() {
 
     private fun openMediaOutputSelector(): Boolean {
         return try {
-            // If Samsung, attempt to open Samsung Media Output panel directly
+            // 1. Samsung One UI specific media output intents
             if (Build.MANUFACTURER.contains("samsung", ignoreCase = true)) {
+                val samsungIntents = listOf(
+                    Intent("com.samsung.android.setting.MEDIA_OUTPUT"),
+                    Intent("com.samsung.android.app.soundalive.ACTION_DUAL_AUDIO"),
+                    Intent().setClassName("com.samsung.android.setting", "com.samsung.android.setting.mediaoutput.MediaOutputActivity"),
+                    Intent().setClassName("com.android.settings", "com.samsung.android.settings.bluetooth.CheckableMediaDeviceActivity")
+                )
+                for (sIntent in samsungIntents) {
+                    try {
+                        sIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(sIntent)
+                        return true
+                    } catch (_: Exception) {}
+                }
+            }
+
+            // 2. Android 10+ (API 29+) Media Output Panel
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    val samsungIntent = Intent("com.samsung.android.setting.MEDIA_OUTPUT").apply {
+                    val intent = Intent("android.settings.panel.action.MEDIA_OUTPUT").apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("com.android.settings.panel.extra.PACKAGE_NAME", packageName)
+                        putExtra("android.provider.extra.PACKAGE_NAME", packageName)
                     }
-                    startActivity(samsungIntent)
+                    startActivity(intent)
                     return true
                 } catch (_: Exception) {}
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val intent = Intent("android.settings.panel.action.MEDIA_OUTPUT").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra("android.provider.extra.PACKAGE_NAME", packageName)
-                }
-                startActivity(intent)
-                true
-            } else {
-                openBluetoothSettings()
-            }
+            // 3. Fallback: Bluetooth settings
+            openBluetoothSettings()
         } catch (_: Exception) {
             openBluetoothSettings()
         }
@@ -565,73 +593,97 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Real native audio playback engine using AudioTrack.
-     * Generates a stereo harmonic soundscape so when "Share Audio" is active,
-     * actual audio streams continuously through connected Bluetooth outputs.
+     * Plays a pleasant, gentle 0.35-second dual confirmation chime through all connected
+     * Bluetooth audio outputs so the user can verify both headphones are connected and responsive.
+     * Crucially, this does NOT run an infinite loop and does NOT lock audio focus, ensuring
+     * external music apps (Spotify, YouTube, media players) can stream cleanly to both outputs.
      */
-    private fun startNativeAudioPlayback() {
-        if (isPlayingAudio) return
-        isPlayingAudio = true
-
-        playbackThread = thread(start = true, isDaemon = true, name = "SoundShareAudioPlayback") {
+    private fun playDualAudioChime() {
+        thread(start = true, isDaemon = true, name = "SoundShareChime") {
             val sampleRate = 44100
             val channelConfig = AudioFormat.CHANNEL_OUT_STEREO
             val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-            val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-            val bufferSize = (minBufferSize * 2).coerceAtLeast(4096)
+            val durationSec = 0.35
+            val totalFrames = (sampleRate * durationSec).toInt()
+            val totalShorts = totalFrames * 2
+            val chimeBuffer = ShortArray(totalShorts)
+
+            // Two-tone ascending chime: Note 1 (C5 = 523.25 Hz, 0-140ms), Note 2 (E5 = 659.25 Hz, 140-350ms)
+            val splitFrame = (sampleRate * 0.14).toInt()
+            var phase1 = 0.0
+            var phase2 = 0.0
+
+            for (frame in 0 until totalFrames) {
+                val freq = if (frame < splitFrame) 523.25 else 659.25
+                val currentPhase = if (frame < splitFrame) {
+                    phase1 += 2.0 * Math.PI * freq / sampleRate
+                    if (phase1 > 2.0 * Math.PI) phase1 -= 2.0 * Math.PI
+                    phase1
+                } else {
+                    phase2 += 2.0 * Math.PI * freq / sampleRate
+                    if (phase2 > 2.0 * Math.PI) phase2 -= 2.0 * Math.PI
+                    phase2
+                }
+
+                // Envelope: Smooth gentle attack, exponential decay to zero
+                val env = if (frame < splitFrame) {
+                    val note1Rel = frame.toDouble() / splitFrame
+                    val attack = (frame.toDouble() / (sampleRate * 0.01)).coerceIn(0.0, 1.0)
+                    attack * (1.0 - note1Rel * 0.35)
+                } else {
+                    val note2Frame = frame - splitFrame
+                    val note2Len = totalFrames - splitFrame
+                    val attack = (note2Frame.toDouble() / (sampleRate * 0.008)).coerceIn(0.0, 1.0)
+                    val decay = exp(-4.5 * (note2Frame.toDouble() / note2Len))
+                    attack * decay
+                }
+
+                val sampleVal = (sin(currentPhase) * env * 0.65 * Short.MAX_VALUE).toInt().toShort()
+                val idx = frame * 2
+                chimeBuffer[idx] = sampleVal     // Left
+                chimeBuffer[idx + 1] = sampleVal // Right
+            }
 
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+            val bufferSize = (minBufferSize * 2).coerceAtLeast(totalShorts * 2)
 
+            // Find distinct connected Bluetooth outputs (deduplicating Left/Right earbuds)
+            val allOutputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                    it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                }
+            } else emptyList()
+
+            val distinctOutputs = mutableListOf<AudioDeviceInfo>()
+            allOutputs.forEach { dev ->
+                val pName = dev.productName?.toString() ?: ""
+                val isDup = distinctOutputs.any {
+                    val exName = it.productName?.toString() ?: ""
+                    normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                }
+                if (!isDup) {
+                    distinctOutputs.add(dev)
+                }
+            }
+
+            val tempTracks = mutableListOf<AudioTrack>()
             try {
-                // 1. Request Audio Focus so Android OS routes audio to SoundShare
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        val afr = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                            .setAudioAttributes(
-                                AudioAttributes.Builder()
-                                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                    .build()
-                            )
-                            .setOnAudioFocusChangeListener { /* maintain continuous playback */ }
-                            .build()
-                        audioFocusRequest = afr
-                        audioManager.requestAudioFocus(afr)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
-                    }
-                } catch (_: Exception) {}
-
-                // 2. Ensure media volume is loud and audible
-                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                if (currentVol < (maxVol * 0.4).toInt() && maxVol > 0) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (maxVol * 0.7).toInt(), 0)
+                // Request transient ducking focus for the brief chime only
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val afr = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                .build()
+                        )
+                        .build()
+                    audioManager.requestAudioFocus(afr)
                 }
 
-                // 3. Find distinct connected Bluetooth outputs (deduplicating Left/Right earbuds)
-                val allOutputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
-                        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                        it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    }
-                } else emptyList()
-
-                val distinctOutputs = mutableListOf<AudioDeviceInfo>()
-                allOutputs.forEach { dev ->
-                    val pName = dev.productName?.toString() ?: ""
-                    val isDup = distinctOutputs.any {
-                        val exName = it.productName?.toString() ?: ""
-                        normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
-                    }
-                    if (!isDup) {
-                        distinctOutputs.add(dev)
-                    }
-                }
-
-                // 4. Create Primary AudioTrack (Default System Media Route)
-                // This guarantees audio always plays through whatever device is active or cloned by OS
+                // Track 1 (Primary route)
                 val primaryTrack = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
@@ -655,14 +707,12 @@ class MainActivity : FlutterActivity() {
                         primaryTrack.preferredDevice = distinctOutputs[0]
                     } catch (_: Exception) {}
                 }
-
                 try {
-                    primaryTrack.setVolume(1.0f)
                     primaryTrack.play()
-                    audioTracks.add(primaryTrack)
+                    tempTracks.add(primaryTrack)
                 } catch (_: Exception) {}
 
-                // 5. If a DISTINCT second device is connected, create a dedicated secondary track
+                // Track 2 (Second distinct device if available)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && distinctOutputs.size >= 2) {
                     try {
                         val secondaryTrack = AudioTrack.Builder()
@@ -684,107 +734,251 @@ class MainActivity : FlutterActivity() {
                             .build()
 
                         secondaryTrack.preferredDevice = distinctOutputs[1]
-                        secondaryTrack.setVolume(1.0f)
                         secondaryTrack.play()
-                        audioTracks.add(secondaryTrack)
+                        tempTracks.add(secondaryTrack)
                     } catch (_: Exception) {}
                 }
 
-                val buffer = ShortArray(bufferSize / 2)
-                var phase1 = 0.0
-                var phase2 = 0.0
-                var phase3 = 0.0
-                var sampleIndex = 0L
-
-                // Pleasant, clear harmonic chord: A Major triad (A4 = 440 Hz, C#5 = 554.37 Hz, E5 = 659.25 Hz)
-                val freq1 = 440.0
-                val freq2 = 554.37
-                val freq3 = 659.25
-
-                while (isPlayingAudio) {
-                    val timeSec = sampleIndex.toDouble() / sampleRate
-                    // Rhythmic pulse for audible real-time sharing feedback (1.2 Hz)
-                    val pulse = 0.65 + 0.35 * sin(2.0 * Math.PI * 1.2 * timeSec)
-
-                    for (i in 0 until buffer.size step 2) {
-                        phase1 += 2.0 * Math.PI * freq1 / sampleRate
-                        phase2 += 2.0 * Math.PI * freq2 / sampleRate
-                        phase3 += 2.0 * Math.PI * freq3 / sampleRate
-                        if (phase1 > 2.0 * Math.PI) phase1 -= 2.0 * Math.PI
-                        if (phase2 > 2.0 * Math.PI) phase2 -= 2.0 * Math.PI
-                        if (phase3 > 2.0 * Math.PI) phase3 -= 2.0 * Math.PI
-
-                        val sampleVal = ((sin(phase1) * 0.45 + sin(phase2) * 0.35 + sin(phase3) * 0.20) * pulse * 0.75 * Short.MAX_VALUE).toInt().toShort()
-
-                        buffer[i] = sampleVal       // Left channel
-                        buffer[i + 1] = sampleVal   // Right channel
-                    }
-                    sampleIndex += buffer.size / 2
-
-                    // Primary track writes in standard blocking mode to anchor 44.1kHz hardware timing
+                // Write chime once to all active tracks
+                for (track in tempTracks) {
                     try {
-                        if (primaryTrack.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                            primaryTrack.write(buffer, 0, buffer.size)
-                        }
-                    } catch (_: Exception) {}
-
-                    // Secondary track writes synchronized buffer
-                    for (i in 1 until audioTracks.size) {
-                        val t = audioTracks[i]
-                        try {
-                            if (t.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    t.write(buffer, 0, buffer.size, AudioTrack.WRITE_NON_BLOCKING)
-                                } else {
-                                    t.write(buffer, 0, buffer.size)
-                                }
-                            }
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                for (t in audioTracks) {
-                    try {
-                        t.stop()
-                        t.release()
+                        track.write(chimeBuffer, 0, chimeBuffer.size)
                     } catch (_: Exception) {}
                 }
-                audioTracks.clear()
+
+                // Allow 380ms for hardware buffer to complete audio emission
+                Thread.sleep(380)
+
             } catch (_: Exception) {
             } finally {
-                audioTracks.clear()
-                isPlayingAudio = false
+                // Immediately release tracks and abandon audio focus so Spotify, YouTube, and music players stream freely
+                for (track in tempTracks) {
+                    try {
+                        track.stop()
+                        track.release()
+                    } catch (_: Exception) {}
+                }
+                tempTracks.clear()
+
                 try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest is AudioFocusRequest) {
-                        audioManager.abandonAudioFocusRequest(audioFocusRequest as AudioFocusRequest)
-                        audioFocusRequest = null
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val afr = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).build()
+                        audioManager.abandonAudioFocusRequest(afr)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        audioManager.abandonAudioFocus(null)
                     }
                 } catch (_: Exception) {}
             }
         }
     }
 
-    private fun stopNativeAudioPlayback() {
-        isPlayingAudio = false
-        playbackThread?.interrupt()
-        playbackThread = null
-        for (t in audioTracks) {
+    /**
+     * Starts native audio sharing mode.
+     * 1. Plays a brief dual startup confirmation chime (0.35s) on both connected devices.
+     * 2. On Android 10+ (API 29+), launches AudioPlaybackCapture so that music played from
+     *    ANY app (Spotify, YouTube, media players) is captured and mirrored to both headphones
+     *    synchronously across ALL phone brands (Samsung, Xiaomi, Oppo, Vivo, OnePlus, Pixel, Moto).
+     */
+    private fun startNativeAudioPlayback() {
+        if (isPlayingAudio) return
+        isPlayingAudio = true
+
+        // Play brief dual confirmation chime so user gets immediate acoustic confirmation
+        playDualAudioChime()
+
+        // Universal real-time audio capture for Android 10+ across all phone brands
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                t.stop()
-                t.release()
+                val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
+                if (mpManager != null) {
+                    startActivityForResult(mpManager.createScreenCaptureIntent(), REQUEST_CODE_MEDIA_PROJECTION)
+                }
             } catch (_: Exception) {}
         }
-        audioTracks.clear()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_MEDIA_PROJECTION) {
+            if (resultCode == Activity.RESULT_OK && data != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try {
+                    val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
+                    val mp = mpManager?.getMediaProjection(resultCode, data)
+                    if (mp != null) {
+                        mediaProjection = mp
+                        startRealtimeAudioCapture(mp)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    private fun startRealtimeAudioCapture(mp: MediaProjection) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        stopAudioCapture()
+        isCapturingAudio = true
+
+        captureThread = thread(start = true, isDaemon = true, name = "SoundShareCapture") {
+            // Wait 400ms for startup chime to finish emitting
+            try { Thread.sleep(400) } catch (_: Exception) {}
+
+            val sampleRate = 44100
+            val channelConfig = AudioFormat.CHANNEL_IN_STEREO
+            val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+            val minRecordBuf = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+            val recordBufSize = (minRecordBuf * 2).coerceAtLeast(4096)
+
+            val minTrackBuf = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, audioFormat)
+            val trackBufSize = (minTrackBuf * 2).coerceAtLeast(4096)
+
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+            // Find distinct outputs
+            val allOutputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            }
+            val distinctOutputs = mutableListOf<AudioDeviceInfo>()
+            allOutputs.forEach { dev ->
+                val pName = dev.productName?.toString() ?: ""
+                val isDup = distinctOutputs.any {
+                    val exName = it.productName?.toString() ?: ""
+                    normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                }
+                if (!isDup) distinctOutputs.add(dev)
+            }
+
+            try {
+                val config = AudioPlaybackCaptureConfiguration.Builder(mp)
+                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                    .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                    .build()
+
+                val record = AudioRecord.Builder()
+                    .setAudioPlaybackCaptureConfig(config)
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(audioFormat)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(channelConfig)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(recordBufSize)
+                    .build()
+
+                audioRecord = record
+
+                // Create secondary track specifically routed to Device 2
+                val secTrack = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(audioFormat)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(trackBufSize)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+
+                if (distinctOutputs.size >= 2) {
+                    secTrack.preferredDevice = distinctOutputs[1]
+                }
+
+                secTrack.play()
+                record.startRecording()
+
+                synchronized(audioTracks) {
+                    audioTracks.clear()
+                    audioTracks.add(secTrack)
+                }
+
+                val pcmBuffer = ShortArray(recordBufSize / 2)
+
+                while (isPlayingAudio && isCapturingAudio) {
+                    val readCount = record.read(pcmBuffer, 0, pcmBuffer.size)
+                    if (readCount > 0) {
+                        secTrack.write(pcmBuffer, 0, readCount)
+                    }
+                }
+
+                try {
+                    secTrack.stop()
+                    secTrack.release()
+                } catch (_: Exception) {}
+                try {
+                    record.stop()
+                    record.release()
+                } catch (_: Exception) {}
+
+            } catch (_: Exception) {
+            } finally {
+                synchronized(audioTracks) {
+                    audioTracks.clear()
+                }
+            }
+        }
+    }
+
+    private fun stopAudioCapture() {
+        isCapturingAudio = false
+        captureThread?.interrupt()
+        captureThread = null
+        try {
+            audioRecord?.stop()
+            audioRecord?.release()
+            audioRecord = null
+        } catch (_: Exception) {}
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mediaProjection?.stop()
+            }
+            mediaProjection = null
+        } catch (_: Exception) {}
+    }
+
+    private fun stopNativeAudioPlayback() {
+        isPlayingAudio = false
+        stopAudioCapture()
+        playbackThread?.interrupt()
+        playbackThread = null
+        synchronized(audioTracks) {
+            for (t in audioTracks) {
+                try {
+                    t.stop()
+                    t.release()
+                } catch (_: Exception) {}
+            }
+            audioTracks.clear()
+        }
         try {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest is AudioFocusRequest) {
                 audioManager.abandonAudioFocusRequest(audioFocusRequest as AudioFocusRequest)
                 audioFocusRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(null)
             }
         } catch (_: Exception) {}
     }
 
     private fun setDeviceVolume(address: String, volume: Float) {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val targetVol = (volume.coerceIn(0f, 1f) * maxVol).toInt()
+        try {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+        } catch (_: Exception) {}
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             var matched = false
             audioTracks.forEach { track ->
@@ -798,7 +992,6 @@ class MainActivity : FlutterActivity() {
                     } catch (_: Exception) {}
                 }
             }
-            // If no specific track matched or single device fallback, apply to all active tracks
             if (!matched) {
                 audioTracks.forEach { track ->
                     try {

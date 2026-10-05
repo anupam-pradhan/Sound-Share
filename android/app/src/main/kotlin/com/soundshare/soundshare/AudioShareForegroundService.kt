@@ -52,8 +52,8 @@ class AudioShareForegroundService : Service() {
                     startForeground(
                         NOTIFICATION_ID,
                         notification,
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
                         } else {
                             0
                         }

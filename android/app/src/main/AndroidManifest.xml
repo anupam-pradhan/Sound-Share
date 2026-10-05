@@ -22,6 +22,7 @@
     <!-- Foreground service and notifications for audio sharing -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Network state (for peer sharing) -->
@@ -73,7 +74,7 @@
             android:name=".AudioShareForegroundService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|mediaProjection" />
     </application>
     <queries>
         <intent>
