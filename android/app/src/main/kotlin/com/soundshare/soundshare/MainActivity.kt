@@ -809,19 +809,6 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun stopNativeAudioPlayback() {
-        isPlayingAudio = false
-        playbackThread?.interrupt()
-        playbackThread = null
-        for (t in audioTracks) {
-            try {
-                t.stop()
-                t.release()
-            } catch (_: Exception) {}
-        }
-        audioTracks.clear()
-    }
-
     override fun onDestroy() {
         stopNativeAudioPlayback()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && audioDeviceCallback != null) {
