@@ -30,11 +30,20 @@ android {
         versionName = flutter.versionName
     }
 
+    val releaseKeystoreFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+        ?: if (file("upload-keystore.jks").exists()) {
+            file("upload-keystore.jks")
+        } else if (file("upload-keystore.jks.old").exists()) {
+            file("upload-keystore.jks.old")
+        } else {
+            null
+        }
+
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias") ?: "upload"
             keyPassword = keystoreProperties.getProperty("keyPassword") ?: "soundshare2026"
-            storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) } ?: file("upload-keystore.jks")
+            storeFile = releaseKeystoreFile
             storePassword = keystoreProperties.getProperty("storePassword") ?: "soundshare2026"
         }
     }
@@ -45,7 +54,11 @@ android {
             isShrinkResources = false
         }
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (releaseKeystoreFile != null && releaseKeystoreFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

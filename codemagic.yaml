@@ -42,8 +42,17 @@ workflows:
           keyAlias=$CM_KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
+          elif [ -f "android/app/upload-keystore.jks.old" ]; then
+            echo "Found android/app/upload-keystore.jks.old, restoring upload-keystore.jks..."
+            cp android/app/upload-keystore.jks.old android/app/upload-keystore.jks
+            cat <<EOF > android/key.properties
+          storePassword=soundshare2026
+          keyPassword=soundshare2026
+          keyAlias=upload
+          storeFile=upload-keystore.jks
+          EOF
           else
-            echo "CM_KEYSTORE not set. Using existing project keystore / debug configuration."
+            echo "Using existing keystore or debug fallback."
           fi
 
       - name: Get Flutter packages
