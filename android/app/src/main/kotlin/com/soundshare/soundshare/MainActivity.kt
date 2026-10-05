@@ -26,6 +26,13 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.util.Collections
+import android.os.Process
 import kotlin.concurrent.thread
 import kotlin.math.exp
 import kotlin.math.sin
@@ -60,6 +67,11 @@ class MainActivity : FlutterActivity() {
     private var audioRecord: AudioRecord? = null
     private var captureThread: Thread? = null
     private var isCapturingAudio = false
+
+    // Real-time HTTP PCM/WAV audio stream server for universal peer devices
+    private var liveStreamServer: ServerSocket? = null
+    private val liveStreamClients = Collections.synchronizedList(mutableListOf<Socket>())
+    private var isStreamingServerRunning = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -819,6 +831,9 @@ class MainActivity : FlutterActivity() {
         stopAudioCapture()
         isCapturingAudio = true
 
+        // Start local HTTP audio streaming server so any connected peer phone/browser receives the live audio stream
+        startLiveAudioStreamServer(8889)
+
         captureThread = thread(start = true, isDaemon = true, name = "SoundShareCapture") {
             // Wait 400ms for startup chime to finish emitting
             try { Thread.sleep(400) } catch (_: Exception) {}
@@ -834,10 +849,15 @@ class MainActivity : FlutterActivity() {
 
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-            // Find distinct outputs
+            // Find distinct outputs across Bluetooth, Wired, USB-C, and BLE
             val allOutputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
                 it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                it.type == 26 || it.type == 27 || it.type == 30 ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
             }
             val distinctOutputs = mutableListOf<AudioDeviceInfo>()
             allOutputs.forEach { dev ->
@@ -850,10 +870,12 @@ class MainActivity : FlutterActivity() {
             }
 
             try {
+                // EXCLUDE own app UID to avoid infinite audio capture feedback/looping
                 val config = AudioPlaybackCaptureConfiguration.Builder(mp)
                     .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                     .addMatchingUsage(AudioAttributes.USAGE_GAME)
                     .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                    .excludeUid(Process.myUid())
                     .build()
 
                 val record = AudioRecord.Builder()
@@ -870,7 +892,7 @@ class MainActivity : FlutterActivity() {
 
                 audioRecord = record
 
-                // Create secondary track specifically routed to Device 2
+                // Create secondary track specifically routed to Device 2 if 2 distinct hardware outputs exist
                 val secTrack = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
@@ -890,23 +912,33 @@ class MainActivity : FlutterActivity() {
                     .build()
 
                 if (distinctOutputs.size >= 2) {
-                    secTrack.preferredDevice = distinctOutputs[1]
+                    try {
+                        secTrack.preferredDevice = distinctOutputs[1]
+                    } catch (_: Exception) {}
+                    try {
+                        secTrack.play()
+                        synchronized(audioTracks) {
+                            audioTracks.clear()
+                            audioTracks.add(secTrack)
+                        }
+                    } catch (_: Exception) {}
                 }
 
-                secTrack.play()
                 record.startRecording()
-
-                synchronized(audioTracks) {
-                    audioTracks.clear()
-                    audioTracks.add(secTrack)
-                }
 
                 val pcmBuffer = ShortArray(recordBufSize / 2)
 
                 while (isPlayingAudio && isCapturingAudio) {
                     val readCount = record.read(pcmBuffer, 0, pcmBuffer.size)
                     if (readCount > 0) {
-                        secTrack.write(pcmBuffer, 0, readCount)
+                        // 1. Write to local secondary output if available (e.g. wired/USB or multi-sink BT)
+                        if (distinctOutputs.size >= 2) {
+                            try {
+                                secTrack.write(pcmBuffer, 0, readCount)
+                            } catch (_: Exception) {}
+                        }
+                        // 2. Broadcast PCM live to all connected peer listeners over Wi-Fi / Hotspot
+                        broadcastPcmToLiveClients(pcmBuffer, readCount)
                     }
                 }
 
@@ -928,8 +960,135 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun startLiveAudioStreamServer(port: Int = 8889) {
+        stopLiveAudioStreamServer()
+        thread(start = true, isDaemon = true, name = "SoundShareStreamServer") {
+            try {
+                val server = ServerSocket()
+                server.reuseAddress = true
+                server.bind(InetSocketAddress("0.0.0.0", port))
+                liveStreamServer = server
+                isStreamingServerRunning = true
+
+                while (isStreamingServerRunning && !server.isClosed) {
+                    try {
+                        val client = server.accept()
+                        thread(start = true, isDaemon = true, name = "SoundShareStreamClient") {
+                            handleLiveStreamClient(client)
+                        }
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun handleLiveStreamClient(client: Socket) {
+        try {
+            client.soTimeout = 0
+            client.tcpNoDelay = true
+            val reader = BufferedReader(InputStreamReader(client.getInputStream()))
+            // Consume request headers
+            var line: String? = reader.readLine()
+            while (!line.isNullOrEmpty()) {
+                line = reader.readLine()
+            }
+
+            val out = client.getOutputStream()
+            val header = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: audio/wav\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Cache-Control: no-cache, no-store\r\n" +
+                    "Connection: close\r\n\r\n"
+            out.write(header.toByteArray(Charsets.US_ASCII))
+
+            // Standard 44-byte WAV header for indefinite streaming (44.1kHz, 16-bit, Stereo)
+            val wavHeader = createWavHeader(sampleRate = 44100, channels = 2, bitsPerSample = 16)
+            out.write(wavHeader)
+            out.flush()
+
+            liveStreamClients.add(client)
+        } catch (_: Exception) {
+            try { client.close() } catch (_: Exception) {}
+        }
+    }
+
+    private fun createWavHeader(sampleRate: Int, channels: Int, bitsPerSample: Int): ByteArray {
+        val byteRate = sampleRate * channels * bitsPerSample / 8
+        val blockAlign = channels * bitsPerSample / 8
+        val totalDataLen = 0x7FFFFFF0
+        val totalAudioLen = totalDataLen + 36
+
+        val header = ByteArray(44)
+        header[0] = 'R'.code.toByte(); header[1] = 'I'.code.toByte(); header[2] = 'F'.code.toByte(); header[3] = 'F'.code.toByte()
+        header[4] = (totalAudioLen and 0xff).toByte()
+        header[5] = ((totalAudioLen shr 8) and 0xff).toByte()
+        header[6] = ((totalAudioLen shr 16) and 0xff).toByte()
+        header[7] = ((totalAudioLen shr 24) and 0xff).toByte()
+        header[8] = 'W'.code.toByte(); header[9] = 'A'.code.toByte(); header[10] = 'V'.code.toByte(); header[11] = 'E'.code.toByte()
+        header[12] = 'f'.code.toByte(); header[13] = 'm'.code.toByte(); header[14] = 't'.code.toByte(); header[15] = ' '.code.toByte()
+        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0 // 16 for PCM
+        header[20] = 1; header[21] = 0 // format = 1 (PCM)
+        header[22] = channels.toByte(); header[23] = 0
+        header[24] = (sampleRate and 0xff).toByte()
+        header[25] = ((sampleRate shr 8) and 0xff).toByte()
+        header[26] = ((sampleRate shr 16) and 0xff).toByte()
+        header[27] = ((sampleRate shr 24) and 0xff).toByte()
+        header[28] = (byteRate and 0xff).toByte()
+        header[29] = ((byteRate shr 8) and 0xff).toByte()
+        header[30] = ((byteRate shr 16) and 0xff).toByte()
+        header[31] = ((byteRate shr 24) and 0xff).toByte()
+        header[32] = blockAlign.toByte(); header[33] = 0
+        header[34] = bitsPerSample.toByte(); header[35] = 0
+        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
+        header[40] = (totalDataLen and 0xff).toByte()
+        header[41] = ((totalDataLen shr 8) and 0xff).toByte()
+        header[42] = ((totalDataLen shr 16) and 0xff).toByte()
+        header[43] = ((totalDataLen shr 24) and 0xff).toByte()
+        return header
+    }
+
+    private fun broadcastPcmToLiveClients(pcmBuffer: ShortArray, readCount: Int) {
+        if (liveStreamClients.isEmpty() || readCount <= 0) return
+        val byteBuf = ByteArray(readCount * 2)
+        for (i in 0 until readCount) {
+            val s = pcmBuffer[i].toInt()
+            byteBuf[i * 2] = (s and 0xFF).toByte()
+            byteBuf[i * 2 + 1] = ((s shr 8) and 0xFF).toByte()
+        }
+
+        val deadClients = mutableListOf<Socket>()
+        synchronized(liveStreamClients) {
+            for (client in liveStreamClients) {
+                try {
+                    client.getOutputStream().write(byteBuf)
+                } catch (_: Exception) {
+                    deadClients.add(client)
+                }
+            }
+            if (deadClients.isNotEmpty()) {
+                liveStreamClients.removeAll(deadClients)
+                deadClients.forEach { try { it.close() } catch (_: Exception) {} }
+            }
+        }
+    }
+
+    private fun stopLiveAudioStreamServer() {
+        isStreamingServerRunning = false
+        try {
+            liveStreamServer?.close()
+        } catch (_: Exception) {}
+        liveStreamServer = null
+        synchronized(liveStreamClients) {
+            for (client in liveStreamClients) {
+                try { client.close() } catch (_: Exception) {}
+            }
+            liveStreamClients.clear()
+        }
+    }
+
     private fun stopAudioCapture() {
         isCapturingAudio = false
+        stopLiveAudioStreamServer()
         captureThread?.interrupt()
         captureThread = null
         try {

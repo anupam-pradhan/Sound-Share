@@ -359,32 +359,40 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
     } else if (lower.contains('google') || lower.contains('pixel')) {
       brandTitle = 'Google Pixel Dual Audio Instructions';
       steps = [
-        'Pair both Bluetooth headphones in Settings > Connected devices.',
-        'Tap "Open Media Output Panel" below to select multiple audio destinations.',
-        'On Android 13/14+, you can also enable "Audio Sharing" in Connected devices settings.',
-        'Both headphones will receive synchronized audio!',
+        'Tap "Developer Options" below.',
+        'Enable "Disable Bluetooth A2DP hardware offload" & set "Max connected devices" to 2 or 5.',
+        'Restart your phone for changes to take effect.',
+        'Connect both headphones in Settings > Connected devices.',
+        'Tap "Open Media Output Panel" below and select both headphones!',
       ];
     } else if (lower.contains('xiaomi') || lower.contains('redmi') || lower.contains('poco')) {
       brandTitle = 'Xiaomi / HyperOS / MIUI Instructions';
       steps = [
         'Tap "Developer Options" below.',
-        'Scroll down and set "Maximum connected Bluetooth audio devices" to 2 or 5.',
-        'Connect both headphones in Bluetooth Settings (now neither will disconnect!).',
-        'Tap "Open Media Output Panel" to route audio to both.',
+        'Enable "Disable Bluetooth A2DP hardware offload" (Turn ON).',
+        'Set "Maximum connected Bluetooth audio devices" to 2 or 5.',
+        'Restart your phone (Crucial!).',
+        'Now connect BOTH headphones in Bluetooth Settings — neither will disconnect!',
+        'Tap "Open Media Output Panel" below to check both headphones.',
       ];
     } else if (lower.contains('oneplus') || lower.contains('oppo') || lower.contains('realme')) {
       brandTitle = 'OnePlus / OxygenOS / ColorOS Instructions';
       steps = [
+        'Tap "Developer Options" below.',
+        'Turn ON "Disable Bluetooth A2DP hardware offload".',
+        'Set "Maximum connected Bluetooth audio devices" to 2 (or 5).',
+        'Restart your phone.',
         'Connect both Bluetooth headphones in Bluetooth Settings.',
-        'If the first disconnects, tap "Developer Options" below and set "Max connected audio devices" to 2.',
-        'Tap "Open Media Output Panel" below and select both audio outputs.',
+        'Tap "Open Media Output Panel" below and select both audio outputs!',
       ];
     } else {
       brandTitle = '$manufacturer Dual Bluetooth Instructions';
       steps = [
-        'If your phone disconnects the 1st headphone when connecting the 2nd, tap "Developer Options" below.',
-        'Set "Maximum connected Bluetooth audio devices" from 1 to 2 (or 5).',
-        'Connect both headphones in Bluetooth Settings.',
+        'If your phone disconnects the 1st headphone when connecting the 2nd: tap "Developer Options" below.',
+        'Turn ON "Disable Bluetooth A2DP hardware offload".',
+        'Set "Maximum connected Bluetooth audio devices" to 2 (or 5).',
+        'Restart your phone.',
+        'Connect both headphones in Bluetooth Settings (both will stay connected!).',
         'Tap "Open Media Output Panel" below to route to both headphones!',
       ];
     }

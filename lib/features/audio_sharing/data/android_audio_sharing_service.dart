@@ -362,41 +362,49 @@ class AndroidAudioSharingService implements AudioSharingService {
     <h1>SoundShare Sync</h1>
     <p class="desc">You are connected to the host's live audio broadcast. Plug in your headphones or connect your Bluetooth audio to listen in sync.</p>
     <div class="visualizer-ring">
-      <span class="visualizer-icon">🎧</span>
+      <span class="visualizer-icon" id="statusIcon">🎧</span>
     </div>
+    <audio id="liveAudio" preload="none"></audio>
     <button class="btn-play" id="playBtn" onclick="toggleAudio()">▶ Tap to Listen Along</button>
-    <p class="hint">Works on all browsers &amp; devices • Ultra-low latency</p>
+    <p class="hint">Live low-latency synchronized broadcast • Plug in headphones to listen</p>
   </div>
   <script>
     let isPlaying = false;
-    let audioCtx = null;
-    let osc = null;
-    let gainNode = null;
+    const audioEl = document.getElementById('liveAudio');
+    const playBtn = document.getElementById('playBtn');
+    const statusIcon = document.getElementById('statusIcon');
+    const streamUrl = 'http://' + window.location.hostname + ':8889/stream.wav';
+
+    audioEl.addEventListener('playing', () => {
+      isPlaying = true;
+      playBtn.innerText = '🔊 Listening in Sync (Active)';
+      playBtn.style.background = '#10B981';
+      statusIcon.innerText = '🎵';
+    });
+
+    audioEl.addEventListener('pause', () => {
+      isPlaying = false;
+      playBtn.innerText = '▶ Tap to Resume';
+      playBtn.style.background = 'linear-gradient(135deg, #7A5AF8 0%, #3B82F6 100%)';
+      statusIcon.innerText = '🎧';
+    });
+
+    audioEl.addEventListener('error', (e) => {
+      isPlaying = false;
+      playBtn.innerText = '⚠️ Connecting to stream... Tap to retry';
+      playBtn.style.background = '#F59E0B';
+    });
 
     function toggleAudio() {
-      const btn = document.getElementById('playBtn');
       if (!isPlaying) {
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          osc = audioCtx.createOscillator();
-          gainNode = audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-          gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
-          osc.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-          osc.start();
-        } else if (audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-        isPlaying = true;
-        btn.innerText = '🔊 Listening in Sync (Active)';
-        btn.style.background = '#10B981';
+        audioEl.src = streamUrl + '?t=' + Date.now();
+        audioEl.play().catch(err => {
+          console.warn('Playback error:', err);
+          playBtn.innerText = '▶ Tap to Play Stream';
+        });
       } else {
-        if (audioCtx) audioCtx.suspend();
-        isPlaying = false;
-        btn.innerText = '▶ Tap to Resume';
-        btn.style.background = 'linear-gradient(135deg, #7A5AF8 0%, #3B82F6 100%)';
+        audioEl.pause();
+        audioEl.src = '';
       }
     }
   </script>

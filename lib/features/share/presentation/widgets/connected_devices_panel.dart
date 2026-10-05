@@ -716,6 +716,40 @@ class ConnectedDevicesPanel extends ConsumerWidget {
             margin: const EdgeInsets.symmetric(horizontal: 6),
           ),
           InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              ref.read(audioSharingServiceProvider).openDeveloperSettings();
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.developer_mode_rounded,
+                    size: 15,
+                    color: Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Dev Options',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color: isDark ? const Color(0xFF332F4C) : const Color(0xFFDCD8F0),
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+          ),
+          InkWell(
             onTap: () async {
               HapticFeedback.mediumImpact();
               await ref.read(audioSharingServiceProvider).playTestChime();
@@ -740,7 +774,7 @@ class ConnectedDevicesPanel extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Test Chime',
+                    'Test Sound',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
