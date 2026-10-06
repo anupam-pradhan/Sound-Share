@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -67,6 +68,7 @@ class MainActivity : FlutterActivity() {
 
     // Universal Android 10+ internal audio playback capture & dual-device mirroring
     private val REQUEST_CODE_MEDIA_PROJECTION = 2001
+    private val REQUEST_CODE_RECORD_AUDIO = 2002
     private var mediaProjection: MediaProjection? = null
     private var audioRecord: AudioRecord? = null
     private var captureThread: Thread? = null
@@ -798,6 +800,20 @@ class MainActivity : FlutterActivity() {
      */
     private fun startNativeAudioPlayback() {
         if (isPlayingAudio) return
+
+        // Verify RECORD_AUDIO permission on Android 6+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_CODE_RECORD_AUDIO)
+                return
+            }
+        }
+
+        launchAudioCaptureFlow()
+    }
+
+    private fun launchAudioCaptureFlow() {
+        if (isPlayingAudio) return
         isPlayingAudio = true
 
         // Play brief dual confirmation chime so user gets immediate acoustic confirmation
@@ -806,14 +822,29 @@ class MainActivity : FlutterActivity() {
         // Universal real-time audio capture for Android 10+ across all phone brands
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                // Pre-warm foreground service so system knows we have FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                AudioShareForegroundService.startService(this)
-
                 val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
                 if (mpManager != null) {
                     startActivityForResult(mpManager.createScreenCaptureIntent(), REQUEST_CODE_MEDIA_PROJECTION)
+                } else {
+                    isPlayingAudio = false
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.e("SoundShare", "Failed to launch screen capture dialog: ${e.message}", e)
+                Toast.makeText(this, "Could not open screen capture dialog: ${e.message}", Toast.LENGTH_SHORT).show()
+                isPlayingAudio = false
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_RECORD_AUDIO) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                launchAudioCaptureFlow()
+            } else {
+                isPlayingAudio = false
+                Toast.makeText(this, "Microphone/Audio permission required for audio sharing", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -821,33 +852,37 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_CODE_MEDIA_PROJECTION) {
             if (resultCode == Activity.RESULT_OK && data != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                try {
-                    // 1. Promote Foreground Service to mediaProjection type now that consent is granted
-                    AudioShareForegroundService.enableProjectionMode(this)
-
-                    val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
-                    val mp = mpManager?.getMediaProjection(resultCode, data)
-                    if (mp != null) {
+                AudioShareForegroundService.onProjectionGranted = { mp ->
+                    try {
                         mediaProjection = mp
 
-                        // 2. Register Callback (MANDATORY on Android 14+ / API 34+ before capture can start)
+                        // Register Callback (MANDATORY on Android 14+ / API 34+ before capture can start)
                         mp.registerCallback(object : MediaProjection.Callback() {
                             override fun onStop() {
                                 stopAudioCapture()
                             }
                         }, Handler(Looper.getMainLooper()))
 
-                        // 3. Start audio capture engine
+                        // Start audio capture engine
                         startRealtimeAudioCapture(mp)
                         Toast.makeText(this, "SoundShare Active: Screen audio capture running!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this, "Could not initialize audio capture projection.", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Log.e("SoundShare", "MediaProjection callback error: ${e.message}", e)
+                        Toast.makeText(this, "Audio Capture error: ${e.message}", Toast.LENGTH_LONG).show()
+                        isPlayingAudio = false
                     }
-                } catch (e: Exception) {
-                    Log.e("SoundShare", "MediaProjection failed: ${e.message}", e)
-                    Toast.makeText(this, "Audio Capture error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
+
+                AudioShareForegroundService.onProjectionFailed = { err ->
+                    Log.e("SoundShare", "MediaProjection failed: $err")
+                    Toast.makeText(this, "Audio Capture error: $err", Toast.LENGTH_LONG).show()
+                    isPlayingAudio = false
+                }
+
+                // Foreground Service must be started with MEDIA_PROJECTION type BEFORE getMediaProjection is invoked
+                AudioShareForegroundService.startProjectionService(this, resultCode, data)
             } else {
+                isPlayingAudio = false
                 Toast.makeText(this, "Screen capture permission was not granted.", Toast.LENGTH_SHORT).show()
             }
         }
@@ -865,16 +900,16 @@ class MainActivity : FlutterActivity() {
             // Wait 400ms for startup chime to finish emitting
             try { Thread.sleep(400) } catch (_: Exception) {}
 
-            val sampleRate = 44100
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val nativeSampleRateStr = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
+            val sampleRate = nativeSampleRateStr?.toIntOrNull() ?: 44100
             val channelConfig = AudioFormat.CHANNEL_IN_STEREO
             val audioFormat = AudioFormat.ENCODING_PCM_16BIT
             val minRecordBuf = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-            val recordBufSize = (minRecordBuf * 2).coerceAtLeast(4096)
+            val recordBufSize = if (minRecordBuf > 0) (minRecordBuf * 2).coerceAtLeast(4096) else 8192
 
             val minTrackBuf = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, audioFormat)
-            val trackBufSize = (minTrackBuf * 2).coerceAtLeast(4096)
-
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val trackBufSize = if (minTrackBuf > 0) (minTrackBuf * 2).coerceAtLeast(4096) else 8192
 
             // Find distinct outputs across Bluetooth, Wired, USB-C, and BLE
             val allOutputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
@@ -905,17 +940,38 @@ class MainActivity : FlutterActivity() {
                     .excludeUid(Process.myUid())
                     .build()
 
-                val record = AudioRecord.Builder()
-                    .setAudioPlaybackCaptureConfig(config)
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(audioFormat)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(channelConfig)
-                            .build()
-                    )
-                    .setBufferSizeInBytes(recordBufSize)
-                    .build()
+                var record: AudioRecord? = null
+                try {
+                    record = AudioRecord.Builder()
+                        .setAudioPlaybackCaptureConfig(config)
+                        .setAudioFormat(
+                            AudioFormat.Builder()
+                                .setEncoding(audioFormat)
+                                .setSampleRate(sampleRate)
+                                .setChannelMask(channelConfig)
+                                .build()
+                        )
+                        .setBufferSizeInBytes(recordBufSize)
+                        .build()
+                } catch (e: Exception) {
+                    Log.w("SoundShare", "Failed to init AudioRecord at $sampleRate Hz: ${e.message}")
+                }
+
+                if (record == null || record.state != AudioRecord.STATE_INITIALIZED) {
+                    val fallbackSampleRate = if (sampleRate == 44100) 48000 else 44100
+                    val fallbackBuf = (AudioRecord.getMinBufferSize(fallbackSampleRate, channelConfig, audioFormat) * 2).coerceAtLeast(4096)
+                    record = AudioRecord.Builder()
+                        .setAudioPlaybackCaptureConfig(config)
+                        .setAudioFormat(
+                            AudioFormat.Builder()
+                                .setEncoding(audioFormat)
+                                .setSampleRate(fallbackSampleRate)
+                                .setChannelMask(channelConfig)
+                                .build()
+                        )
+                        .setBufferSizeInBytes(fallbackBuf)
+                        .build()
+                }
 
                 audioRecord = record
 
@@ -1139,6 +1195,7 @@ class MainActivity : FlutterActivity() {
     private fun stopNativeAudioPlayback() {
         isPlayingAudio = false
         stopAudioCapture()
+        AudioShareForegroundService.stopService(this)
         playbackThread?.interrupt()
         playbackThread = null
         synchronized(audioTracks) {

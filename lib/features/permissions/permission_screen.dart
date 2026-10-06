@@ -23,6 +23,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
         Permission.bluetoothAdvertise,
+        Permission.microphone,
         Permission.notification,
         Permission.locationWhenInUse,
       ].request();
@@ -77,7 +78,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
               const SizedBox(height: 10),
 
               Text(
-                'SoundShare needs Bluetooth and notification access to discover nearby devices and stream synchronized audio.',
+                'SoundShare needs Bluetooth, audio capture, and notification access to discover nearby devices and stream synchronized audio.',
                 style: AppTextStyles.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -90,6 +91,15 @@ class _PermissionScreenState extends State<PermissionScreen> {
                 title: 'Nearby Bluetooth Devices',
                 subtitle:
                     'Discover and connect to additional headphones and speakers',
+              ),
+
+              const SizedBox(height: 16),
+
+              const _PermissionTile(
+                icon: Icons.mic_none_rounded,
+                title: 'Audio Capture',
+                subtitle:
+                    'Capture internal playback to synchronize with second device',
               ),
 
               const SizedBox(height: 16),
