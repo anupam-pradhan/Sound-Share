@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 
 class AudioShareForegroundService : Service() {
@@ -18,24 +19,44 @@ class AudioShareForegroundService : Service() {
         const val CHANNEL_ID = "soundshare_audio_channel"
         const val NOTIFICATION_ID = 1001
         const val ACTION_START = "ACTION_START_SHARING"
+        const val ACTION_ENABLE_PROJECTION = "ACTION_ENABLE_PROJECTION"
         const val ACTION_STOP = "ACTION_STOP_SHARING"
 
         fun startService(context: Context) {
-            val intent = Intent(context, AudioShareForegroundService::class.java).apply {
-                action = ACTION_START
+            try {
+                val intent = Intent(context, AudioShareForegroundService::class.java).apply {
+                    action = ACTION_START
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Throwable) {
+                Log.e("AudioShareService", "Failed to start service: ${e.message}", e)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
+        }
+
+        fun enableProjectionMode(context: Context) {
+            try {
+                val intent = Intent(context, AudioShareForegroundService::class.java).apply {
+                    action = ACTION_ENABLE_PROJECTION
+                }
                 context.startService(intent)
+            } catch (e: Throwable) {
+                Log.e("AudioShareService", "Failed to enable projection mode: ${e.message}", e)
             }
         }
 
         fun stopService(context: Context) {
-            val intent = Intent(context, AudioShareForegroundService::class.java).apply {
-                action = ACTION_STOP
+            try {
+                val intent = Intent(context, AudioShareForegroundService::class.java).apply {
+                    action = ACTION_STOP
+                }
+                context.startService(intent)
+            } catch (e: Throwable) {
+                Log.e("AudioShareService", "Failed to stop service: ${e.message}", e)
             }
-            context.startService(intent)
         }
     }
 
@@ -48,26 +69,53 @@ class AudioShareForegroundService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val notification = buildNotification()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        notification,
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try {
+                    // Start initially with MEDIA_PLAYBACK only to avoid Android 14 SecurityException
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            notification,
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID, notification)
+                    }
+                } catch (t: Throwable) {
+                    Log.e("AudioShareService", "startForeground MEDIA_PLAYBACK fallback: ${t.message}", t)
+                    try {
+                        startForeground(NOTIFICATION_ID, notification)
+                    } catch (_: Throwable) {}
+                }
+            }
+            ACTION_ENABLE_PROJECTION -> {
+                val notification = buildNotification()
+                try {
+                    // Promote to MEDIA_PROJECTION only after user consent token has been granted
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            notification,
                             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                        } else {
-                            0
-                        }
-                    )
-                } else {
-                    startForeground(NOTIFICATION_ID, notification)
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID, notification)
+                    }
+                } catch (t: Throwable) {
+                    Log.e("AudioShareService", "startForeground MEDIA_PROJECTION fallback: ${t.message}", t)
+                    try {
+                        startForeground(NOTIFICATION_ID, notification)
+                    } catch (_: Throwable) {}
                 }
             }
             ACTION_STOP -> {
-                stopForeground(true)
+                try {
+                    stopForeground(true)
+                } catch (_: Throwable) {}
                 stopSelf()
             }
         }
-        return START_STICKY
+        // START_NOT_STICKY prevents crash-looping if process terminates unexpectedly
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -79,7 +127,7 @@ class AudioShareForegroundService : Service() {
                 "SoundShare Active Session",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows status while sharing audio to multiple Bluetooth devices"
+                description = "Shows status while sharing audio to connected devices"
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -102,7 +150,7 @@ class AudioShareForegroundService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("SoundShare Active")
-            .setContentText("Sharing audio to connected Bluetooth devices")
+            .setContentText("Sharing audio to connected devices")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

@@ -822,8 +822,8 @@ class MainActivity : FlutterActivity() {
         if (requestCode == REQUEST_CODE_MEDIA_PROJECTION) {
             if (resultCode == Activity.RESULT_OK && data != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    // 1. Ensure Foreground Service is running with mediaProjection type (Required on Android 14+)
-                    AudioShareForegroundService.startService(this)
+                    // 1. Promote Foreground Service to mediaProjection type now that consent is granted
+                    AudioShareForegroundService.enableProjectionMode(this)
 
                     val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
                     val mp = mpManager?.getMediaProjection(resultCode, data)
