@@ -923,12 +923,9 @@ class MainActivity : FlutterActivity() {
             }
             val distinctOutputs = mutableListOf<AudioDeviceInfo>()
             allOutputs.forEach { dev ->
-                val pName = dev.productName?.toString() ?: ""
-                val isDup = distinctOutputs.any {
-                    val exName = it.productName?.toString() ?: ""
-                    normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                if (!distinctOutputs.any { it.id == dev.id }) {
+                    distinctOutputs.add(dev)
                 }
-                if (!isDup) distinctOutputs.add(dev)
             }
 
             try {
@@ -996,7 +993,8 @@ class MainActivity : FlutterActivity() {
 
                 if (distinctOutputs.size >= 2) {
                     try {
-                        secTrack.preferredDevice = distinctOutputs[1]
+                        val routed = secTrack.setPreferredDevice(distinctOutputs[1])
+                        Log.d("SoundShare", "secTrack setPreferredDevice(${distinctOutputs[1].productName}, ID=${distinctOutputs[1].id}) = $routed")
                     } catch (_: Exception) {}
                     try {
                         secTrack.play()
@@ -1005,6 +1003,19 @@ class MainActivity : FlutterActivity() {
                             audioTracks.add(secTrack)
                         }
                     } catch (_: Exception) {}
+                } else {
+                    // Check if two Bluetooth devices are connected at profile level
+                    val btConnectedCount = a2dpProfile?.connectedDevices?.size ?: 0
+                    if (btConnectedCount >= 2) {
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Dual Audio: Select both earphones in Media Output to enable dual sound!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            openMediaOutputSelector()
+                        }
+                    }
                 }
 
                 if (record.state == AudioRecord.STATE_INITIALIZED) {
