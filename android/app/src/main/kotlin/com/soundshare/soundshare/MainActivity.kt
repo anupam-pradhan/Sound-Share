@@ -403,7 +403,7 @@ class MainActivity : FlutterActivity() {
         val recommendedMode = when {
             isSamsung -> "samsung_dual_audio"
             isLeAudioSupported -> "auracast_broadcast"
-            else -> "samsung_dual_audio" // Direct Dual Bluetooth Audio routing on all Android devices
+            else -> "universal_peer_share" // Guaranteed zero-config sharing on all non-Samsung phones without Developer Mode
         }
 
         return mapOf(
