@@ -33,6 +33,10 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.util.Collections
 import android.os.Process
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.widget.Toast
 import kotlin.concurrent.thread
 import kotlin.math.exp
 import kotlin.math.sin
@@ -802,6 +806,9 @@ class MainActivity : FlutterActivity() {
         // Universal real-time audio capture for Android 10+ across all phone brands
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
+                // Pre-warm foreground service so system knows we have FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                AudioShareForegroundService.startService(this)
+
                 val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
                 if (mpManager != null) {
                     startActivityForResult(mpManager.createScreenCaptureIntent(), REQUEST_CODE_MEDIA_PROJECTION)
@@ -815,13 +822,33 @@ class MainActivity : FlutterActivity() {
         if (requestCode == REQUEST_CODE_MEDIA_PROJECTION) {
             if (resultCode == Activity.RESULT_OK && data != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
+                    // 1. Ensure Foreground Service is running with mediaProjection type (Required on Android 14+)
+                    AudioShareForegroundService.startService(this)
+
                     val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
                     val mp = mpManager?.getMediaProjection(resultCode, data)
                     if (mp != null) {
                         mediaProjection = mp
+
+                        // 2. Register Callback (MANDATORY on Android 14+ / API 34+ before capture can start)
+                        mp.registerCallback(object : MediaProjection.Callback() {
+                            override fun onStop() {
+                                stopAudioCapture()
+                            }
+                        }, Handler(Looper.getMainLooper()))
+
+                        // 3. Start audio capture engine
                         startRealtimeAudioCapture(mp)
+                        Toast.makeText(this, "SoundShare Active: Screen audio capture running!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this, "Could not initialize audio capture projection.", Toast.LENGTH_SHORT).show()
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    Log.e("SoundShare", "MediaProjection failed: ${e.message}", e)
+                    Toast.makeText(this, "Audio Capture error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Toast.makeText(this, "Screen capture permission was not granted.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -924,7 +951,11 @@ class MainActivity : FlutterActivity() {
                     } catch (_: Exception) {}
                 }
 
-                record.startRecording()
+                if (record.state == AudioRecord.STATE_INITIALIZED) {
+                    record.startRecording()
+                } else {
+                    Log.e("SoundShare", "AudioRecord failed to initialize! state=${record.state}")
+                }
 
                 val pcmBuffer = ShortArray(recordBufSize / 2)
 
@@ -951,7 +982,8 @@ class MainActivity : FlutterActivity() {
                     record.release()
                 } catch (_: Exception) {}
 
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("SoundShare", "startRealtimeAudioCapture error: ${e.message}", e)
             } finally {
                 synchronized(audioTracks) {
                     audioTracks.clear()
