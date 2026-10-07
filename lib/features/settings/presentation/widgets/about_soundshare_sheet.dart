@@ -106,7 +106,7 @@ class AboutSoundShareSheet extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Developed by Cevrynt',
+                        'Developed by Quick Media Solution',
                         style: AppTextStyles.labelLarge.copyWith(
                           color: AppColors.purple,
                           fontWeight: FontWeight.w700,
@@ -116,7 +116,7 @@ class AboutSoundShareSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'SoundShare is developed and maintained by Cevrynt. We build reliable audio tools that let you share sound with the people around you.',
+                    'SoundShare is developed and maintained by Quick Media Solution. We build reliable audio tools that let you share sound with the people around you.',
                     style: AppTextStyles.bodyMedium.copyWith(height: 1.45),
                   ),
                 ],
