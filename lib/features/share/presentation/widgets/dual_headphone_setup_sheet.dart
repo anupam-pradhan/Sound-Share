@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soundshare/core/utils/android_version.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
@@ -32,17 +33,18 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
     final discovered = ref.watch(discoveredDevicesProvider);
     final service = ref.read(audioSharingServiceProvider);
 
-    final manufacturer = capabilityAsync.valueOrNull?.deviceManufacturer ?? 'Android';
+    final manufacturer =
+        capabilityAsync.valueOrNull?.deviceManufacturer ?? 'Android';
     final androidVersion = capabilityAsync.valueOrNull?.androidVersion ?? 30;
-    final status =
-        ref.watch(dualAudioStatusProvider).valueOrNull ?? DualAudioStatus.unknown;
+    final status = ref.watch(dualAudioStatusProvider).valueOrNull ??
+        DualAudioStatus.unknown;
     final isSamsung = status.mode == DualAudioMode.samsungDualAudio ||
         manufacturer.toLowerCase().contains('samsung');
 
     // Filter available audio devices that are not already connected
     final availableToConnect = discovered.where((d) {
-      final isAlreadyConnected = connected.any((c) =>
-          c.id == d.id || c.name.toLowerCase() == d.name.toLowerCase());
+      final isAlreadyConnected = connected.any(
+          (c) => c.id == d.id || c.name.toLowerCase() == d.name.toLowerCase());
       return !isAlreadyConnected && d.name.trim().isNotEmpty;
     }).toList();
 
@@ -71,7 +73,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
               width: 44,
               height: 4.5,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF332F4C) : const Color(0xFFE2E0EC),
+                color:
+                    isDark ? const Color(0xFF332F4C) : const Color(0xFFE2E0EC),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -109,10 +112,12 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '$manufacturer • Android $androidVersion',
+                        '$manufacturer • Android ${androidReleaseName(androidVersion)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? const Color(0xFF9E9AA8) : AppColors.textSecondary,
+                          color: isDark
+                              ? const Color(0xFF9E9AA8)
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -138,7 +143,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Current connection status banner
-                  Entrance(child: _buildStatusBanner(status, connected, isDark)),
+                  Entrance(
+                      child: _buildStatusBanner(status, connected, isDark)),
 
                   const SizedBox(height: 18),
 
@@ -159,18 +165,21 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppColors.textPrimary,
+                            color:
+                                isDark ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    ...availableToConnect.take(4).map((d) => _buildQuickConnectTile(
-                          context: context,
-                          ref: ref,
-                          device: d,
-                          isDark: isDark,
-                        )),
+                    ...availableToConnect
+                        .take(4)
+                        .map((d) => _buildQuickConnectTile(
+                              context: context,
+                              ref: ref,
+                              device: d,
+                              isDark: isDark,
+                            )),
                     const SizedBox(height: 18),
                   ],
 
@@ -224,7 +233,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                       context: context,
                       icon: Icons.podcasts_rounded,
                       title: 'Open Audio Sharing',
-                      subtitle: 'Android plays to both LE Audio earbuds at once',
+                      subtitle:
+                          'Android plays to both LE Audio earbuds at once',
                       color: AppColors.success,
                       isDark: isDark,
                       onTap: () {
@@ -239,7 +249,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1B192A) : const Color(0xFFF5F3FF),
+                      color: isDark
+                          ? const Color(0xFF1B192A)
+                          : const Color(0xFFF5F3FF),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: AppColors.purple.withValues(alpha: 0.25),
@@ -294,8 +306,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBanner(
-      DualAudioStatus status, List<BluetoothDeviceModel> connected, bool isDark) {
+  Widget _buildStatusBanner(DualAudioStatus status,
+      List<BluetoothDeviceModel> connected, bool isDark) {
     final count = connected.length;
     final (Color color, IconData icon, String message) = switch (status.mode) {
       DualAudioMode.appMirroring => (
@@ -311,7 +323,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
         ),
       DualAudioMode.samsungDualAudio ||
       DualAudioMode.oplusAudioSharing ||
-      DualAudioMode.leAudioSharing => (
+      DualAudioMode.leAudioSharing =>
+        (
           AppColors.blue,
           Icons.info_rounded,
           count >= 2
@@ -511,7 +524,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
               AppHaptics.light();
               final notifier = ref.read(discoveredDevicesProvider.notifier);
               await notifier.connectAudioDevice(device.id);
-              await ref.read(connectedDevicesProvider.notifier).refreshConnectedDevices();
+              await ref
+                  .read(connectedDevicesProvider.notifier)
+                  .refreshConnectedDevices();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.purple,
@@ -543,58 +558,58 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
     return PressableScale(
       onTap: onTap,
       child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1B192A) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: color.withValues(alpha: 0.35),
-            width: 1.2,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1B192A) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: color.withValues(alpha: 0.35),
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFF9E9AA8)
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 20, color: color),
+            ],
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 20, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark
-                          ? const Color(0xFF9E9AA8)
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, size: 20, color: color),
-          ],
-        ),
-      ),
       ),
     );
   }

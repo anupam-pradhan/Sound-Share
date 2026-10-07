@@ -204,7 +204,9 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
           BoxShadow(
             color: _isConnected
                 ? AppColors.success.withValues(alpha: 0.08)
-                : (isDark ? Colors.black.withValues(alpha: 0.2) : AppColors.cardShadow),
+                : (isDark
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : AppColors.cardShadow),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -314,13 +316,11 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
                         overlayShape: const RoundSliderOverlayShape(
                           overlayRadius: 14,
                         ),
-                        activeTrackColor: isMuted
-                            ? AppColors.disabled
-                            : AppColors.purple,
+                        activeTrackColor:
+                            isMuted ? AppColors.disabled : AppColors.purple,
                         inactiveTrackColor: AppColors.cardBorder,
-                        thumbColor: isMuted
-                            ? AppColors.disabled
-                            : AppColors.purple,
+                        thumbColor:
+                            isMuted ? AppColors.disabled : AppColors.purple,
                         overlayColor: AppColors.purple.withValues(alpha: 0.12),
                       ),
                       child: Slider(
@@ -347,9 +347,8 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: isMuted
-                            ? AppColors.error
-                            : AppColors.textSecondary,
+                        color:
+                            isMuted ? AppColors.error : AppColors.textSecondary,
                       ),
                     ),
                   ),

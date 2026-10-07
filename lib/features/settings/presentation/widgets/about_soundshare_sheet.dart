@@ -134,7 +134,7 @@ class AboutSoundShareSheet extends StatelessWidget {
             const SizedBox(height: 12),
             const _FeatureRow(
               icon: Icons.graphic_eq_rounded,
-              title: 'Crystal Clear Dual Audio',
+              title: 'Listen Together',
               description: 'Share your favorite songs and podcasts across two devices synchronously.',
             ),
             const SizedBox(height: 12),

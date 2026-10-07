@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_text_styles.dart';
 import '../../../features/bluetooth/domain/bluetooth_providers.dart';
@@ -11,6 +9,7 @@ import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 import 'package:soundshare/core/widgets/motion/motion.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 // [COMMENTED OUT - BeatSync & Spatial Audio disabled per SoundShare-only configuration]
 // import '../../../features/beatsync/domain/beatsync_providers.dart';
 // import '../../../features/spatial_audio/domain/spatial_audio_providers.dart';
@@ -18,41 +17,6 @@ import 'widgets/about_soundshare_sheet.dart';
 import 'widgets/privacy_policy_sheet.dart';
 import 'widgets/rate_app_dialog.dart';
 import '../../../app/theme/theme_provider.dart';
-
-// ──────────────────────────────────────────────
-// Preferences providers
-// ──────────────────────────────────────────────
-
-final autoConnectProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
-  return _PrefNotifier('auto_connect', defaultValue: false);
-});
-
-final stayVisibleProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
-  return _PrefNotifier('stay_visible', defaultValue: false);
-});
-
-final notificationsEnabledProvider =
-    StateNotifierProvider<_PrefNotifier, bool>((ref) {
-  return _PrefNotifier('notifications_enabled', defaultValue: true);
-});
-
-class _PrefNotifier extends StateNotifier<bool> {
-  _PrefNotifier(this._key, {required bool defaultValue}) : super(defaultValue) {
-    _load();
-  }
-  final String _key;
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    state = prefs.getBool(_key) ?? state;
-  }
-
-  Future<void> toggle() async {
-    state = !state;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_key, state);
-  }
-}
 
 // ──────────────────────────────────────────────
 // Settings Screen
@@ -83,9 +47,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final btState = ref.watch(bluetoothAdapterStateProvider);
     final sharingState = ref.watch(audioSharingStateProvider);
-    final autoConnect = ref.watch(autoConnectProvider);
-    final stayVisible = ref.watch(stayVisibleProvider);
-    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
     final themeMode = ref.watch(themeModeProvider);
 
     final btEnabled = btState.valueOrNull == BluetoothAdapterState.on;
@@ -100,21 +61,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // Header
             Entrance(
                 child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 16, 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon:
-                        const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                    color: AppColors.textPrimary,
-                    onPressed: () {
-                      AppHaptics.light();
-                      context.go('/share');
-                    },
-                  ),
-                  Text('Settings', style: AppTextStyles.headingLarge),
-                ],
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+              child: Text('Settings', style: AppTextStyles.headingLarge),
             )),
 
             Expanded(
@@ -123,7 +71,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // Bluetooth section
+                    const SectionLabel('Connection'),
                     _SettingsCard(
                       index: 1,
                       children: [
@@ -146,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     const SizedBox(height: 12),
 
-                    // Audio section
+                    const SectionLabel('Audio sharing'),
                     _SettingsCard(
                       index: 2,
                       children: [
@@ -229,40 +177,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                           ),
                         ),
-                        _Divider(),
-                        _SettingsRow(
-                          icon: Icons.high_quality_rounded,
-                          iconColor: AppColors.purple,
-                          label: 'Audio quality',
-                          trailing: Text(
-                            'Standard',
-                            style: AppTextStyles.labelMedium,
-                          ),
-                        ),
                       ],
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Preferences section
+                    const SectionLabel('Appearance'),
                     _SettingsCard(
                       index: 3,
                       children: [
-                        _SettingsRow(
-                          icon: Icons.notifications_active_outlined,
-                          iconColor: AppColors.blue,
-                          label: 'Notifications',
-                          subtitle: 'Show playback controls in status bar',
-                          trailing: Switch(
-                            value: notificationsEnabled,
-                            onChanged: (_) => ref
-                                .read(notificationsEnabledProvider.notifier)
-                                .toggle(),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                        _Divider(),
                         _SettingsRow(
                           icon: Icons.dark_mode_outlined,
                           iconColor: AppColors.purple,
@@ -280,40 +203,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
-                        _Divider(),
-                        _SettingsRow(
-                          icon: Icons.link_rounded,
-                          iconColor: AppColors.blue,
-                          label: 'Auto connect',
-                          subtitle: 'Connect last used device when available',
-                          trailing: Switch(
-                            value: autoConnect,
-                            onChanged: (_) =>
-                                ref.read(autoConnectProvider.notifier).toggle(),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                        _Divider(),
-                        _SettingsRow(
-                          icon: Icons.visibility_outlined,
-                          iconColor: AppColors.blue,
-                          label: 'Stay visible',
-                          subtitle:
-                              'Allow nearby devices to discover SoundShare',
-                          trailing: Switch(
-                            value: stayVisible,
-                            onChanged: (_) =>
-                                ref.read(stayVisibleProvider.notifier).toggle(),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
                       ],
                     ),
 
                     const SizedBox(height: 12),
 
+                    const SectionLabel('About'),
                     // Legal & About
                     _SettingsCard(
                       index: 4,
@@ -446,29 +341,14 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Entrance(
       index: index,
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.25)
-                  : AppColors.cardShadow,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+      child: Surface(
+        padding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(children: children),
         ),
-        child: Column(children: children),
       ),
     );
   }

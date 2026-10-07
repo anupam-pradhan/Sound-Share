@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
-import 'package:soundshare/core/widgets/audio_flow_animation.dart';
+import 'package:soundshare/core/utils/app_haptics.dart';
 import 'package:soundshare/core/widgets/motion/motion.dart';
+import 'package:soundshare/core/widgets/surface.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
+import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
-import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
-import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
+
 import 'dual_headphone_setup_sheet.dart';
 
-/// Panel managing connected headphones for synchronized Dual Headphone audio sharing.
+/// "Your headphones" section: what is connected, what is actually playing, and how to add more.
 class ConnectedDevicesPanel extends ConsumerWidget {
   const ConnectedDevicesPanel({
     super.key,
@@ -22,827 +23,316 @@ class ConnectedDevicesPanel extends ConsumerWidget {
   final List<BluetoothDeviceModel> connectedDevices;
   final AudioSharingState sharingState;
 
-  int get _count => connectedDevices.length;
   bool get _isSharing => sharingState == AudioSharingState.sharing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _isSharing
-              ? AppColors.purple.withValues(alpha: 0.5)
-              : (isDark ? const Color(0xFF2B293E) : AppColors.cardBorder),
-          width: _isSharing ? 1.5 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _isSharing
-                ? AppColors.purple.withValues(alpha: 0.14)
-                : (isDark ? Colors.black.withValues(alpha: 0.25) : AppColors.cardShadow),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          _buildHeader(context),
-
-          const SizedBox(height: 14),
-
-          // Audio Flow Animation
-          AudioFlowAnimation(
-            isSharing: _isSharing,
-            connectedDevices: connectedDevices,
-            height: 85,
-          ),
-
-          const SizedBox(height: 16),
-
-          // Headphone Slots
-          if (_count == 0)
-            Entrance(
-              key: const ValueKey('empty-prompt'),
-              child: _buildEmptyPrompt(context, ref),
-            )
-          else ...[
-            // Headphone 1
-            _buildHeadphoneCard(
-              context: context,
-              ref: ref,
-              device: connectedDevices[0],
-              index: 1,
-              isDark: isDark,
-            ),
-
-            const SizedBox(height: 10),
-
-            // Headphone 2 or "Connect 2nd Headphone" slot
-            if (_count >= 2) ...[
-              _buildHeadphoneCard(
-                context: context,
-                ref: ref,
-                device: connectedDevices[1],
-                index: 2,
-                isDark: isDark,
-              ),
-              // Any additional devices
-              for (int i = 2; i < connectedDevices.length; i++) ...[
-                const SizedBox(height: 10),
-                _buildHeadphoneCard(
-                  context: context,
-                  ref: ref,
-                  device: connectedDevices[i],
-                  index: i + 1,
-                  isDark: isDark,
-                ),
-              ],
-            ] else ...[
-              Entrance(
-                key: const ValueKey('add-second-slot'),
-                index: 1,
-                child: _buildAddSecondHeadphoneSlot(context, ref, isDark),
-              ),
-            ],
-          ],
-
-          Reveal(
-            visible: _count >= 2,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _buildDualActionsBar(context, ref, isDark),
-            ),
-          ),
-
-          // Dual Audio OS hint
-          const SizedBox(height: 14),
-          _buildDualAudioHint(context, ref, isDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    if (_isSharing) {
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _count >= 2
-                          ? 'Dual Headphone Sharing Active'
-                          : 'Headphone Audio Sharing Active',
-                      style: AppTextStyles.headingSmall.copyWith(
-                        fontSize: 15,
-                        color: AppColors.purple,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _count >= 2
-                      ? 'Ready! Play music in Spotify, YouTube or media player.'
-                      : 'Connected to 1 headphone (Connect 2nd for dual share)',
-                  style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '$_count Active',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.success,
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (_count >= 2) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Dual Headphones Ready',
-                style: AppTextStyles.headingSmall.copyWith(fontSize: 15),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.purple.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  '2 Connected',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.purple,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Both headphones are connected and ready to share synchronized audio.',
-            style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
-          ),
-        ],
-      );
-    }
-
-    if (_count == 1) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '1 Headphone Connected',
-                style: AppTextStyles.headingSmall.copyWith(fontSize: 15),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.blue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Single Mode',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.blue,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Connect a 2nd headphone below to enable Dual Audio Sharing.',
-            style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
-          ),
-        ],
-      );
-    }
+    final service = ref.read(audioSharingServiceProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Headphone-to-Headphone Share',
-          style: AppTextStyles.headingSmall.copyWith(fontSize: 15),
+        SectionLabel(
+          'Your headphones',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (connectedDevices.isNotEmpty)
+                SectionAction(
+                  label: 'Test',
+                  icon: Icons.music_note_rounded,
+                  onTap: () async {
+                    AppHaptics.light();
+                    await service.playTestChime();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Playing a short test sound…'),
+                          duration: Duration(milliseconds: 1400),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              SectionAction(
+                label: 'Output',
+                icon: Icons.speaker_group_rounded,
+                onTap: () {
+                  AppHaptics.light();
+                  service.openMediaOutputSelector();
+                },
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 3),
-        Text(
-          'Connect two Bluetooth headphones to share music together in real-time.',
-          style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
+        Surface(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (int i = 0; i < connectedDevices.length; i++) ...[
+                if (i > 0) const _RowDivider(),
+                Entrance(
+                  key: ValueKey('headphone-${connectedDevices[i].id}'),
+                  index: i,
+                  child: _HeadphoneRow(
+                    device: connectedDevices[i],
+                    showVolume: _isSharing && connectedDevices[i].isAudioActive,
+                  ),
+                ),
+              ],
+              if (connectedDevices.isNotEmpty) const _RowDivider(),
+              _AddHeadphoneRow(isFirst: connectedDevices.isEmpty),
+            ],
+          ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildEmptyPrompt(BuildContext context, WidgetRef ref) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.purple.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.2),
-          style: BorderStyle.solid,
-        ),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.headphones_rounded,
-            size: 32,
-            color: AppColors.purple,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'No Headphones Connected Yet',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Turn on your Bluetooth headphones or pair them in Bluetooth Settings.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              DualHeadphoneSetupSheet.show(context);
-            },
-            icon: const Icon(Icons.settings_bluetooth_rounded, size: 16),
-            label: const Text('Pair Headphones'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.purple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              elevation: 0,
-            ),
-          ),
-        ],
-      ),
+class _RowDivider extends StatelessWidget {
+  const _RowDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 74,
+      color: Surface.borderColor(context),
     );
   }
+}
 
-  /// Each headphone card animates in when it connects (keyed by device id).
-  Widget _buildHeadphoneCard({
-    required BuildContext context,
-    required WidgetRef ref,
-    required BluetoothDeviceModel device,
-    required int index,
-    required bool isDark,
-  }) {
-    return Entrance(
-      key: ValueKey('headphone-${device.id}'),
-      index: index - 1,
-      child: _buildHeadphoneCardBody(
-        context: context,
-        ref: ref,
-        device: device,
-        index: index,
-        isDark: isDark,
-      ),
-    );
-  }
+class _HeadphoneRow extends ConsumerWidget {
+  const _HeadphoneRow({required this.device, required this.showVolume});
 
-  Widget _buildHeadphoneCardBody({
-    required BuildContext context,
-    required WidgetRef ref,
-    required BluetoothDeviceModel device,
-    required int index,
-    required bool isDark,
-  }) {
-    final isMuted = device.isMuted;
-    final volume = isMuted ? 0.0 : device.volumeLevel;
+  final BluetoothDeviceModel device;
+  final bool showVolume;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F1D30) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.3),
-        ),
-      ),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final playing = device.isAudioActive;
+    final notifier = ref.read(connectedDevicesProvider.notifier);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Device Header (Badge, Name, Disconnect button)
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: index == 1
-                      ? AppColors.purple
-                      : (index == 2 ? AppColors.blue : AppColors.purpleLight),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'HEADPHONE $index',
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
+              _DeviceAvatar(type: device.type, active: playing),
+              const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  device.name,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (!device.isAudioActive) ...[
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () => DualHeadphoneSetupSheet.show(context),
-                  child: Tooltip(
-                    message: 'Connected, but Android is playing on the other headphone',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      device.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
-                      child: const Text(
-                        'STANDBY',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFFB7791F),
-                          letterSpacing: 0.5,
+                    ),
+                    const SizedBox(height: 3),
+                    if (playing)
+                      _StatusLine(
+                        color: AppColors.success,
+                        text: device.batteryLevel != null
+                            ? 'Playing • ${device.batteryLevel}%'
+                            : 'Playing',
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () => DualHeadphoneSetupSheet.show(context),
+                        child: const _StatusLine(
+                          color: Color(0xFFD69E2E),
+                          text: 'Standby • Tap for options',
                         ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-              const SizedBox(width: 6),
-              // Disconnect button
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  ref
-                      .read(connectedDevicesProvider.notifier)
-                      .disconnectDevice(device.id);
+              ),
+              IconButton(
+                tooltip: 'Disconnect ${device.name}',
+                onPressed: () {
+                  AppHaptics.light();
+                  notifier.disconnectDevice(device.id);
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Disconnect',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.error,
-                    ),
-                  ),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: isDark ? const Color(0xFF8F8BA3) : AppColors.textMuted,
                 ),
               ),
             ],
           ),
-
-          const SizedBox(height: 10),
-
-          // Individual Volume & Mute control
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF141322) : const Color(0xFFF7F6FB),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                // Mute toggle
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    ref
-                        .read(connectedDevicesProvider.notifier)
-                        .toggleMute(device.id);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: isMuted
-                          ? AppColors.error.withValues(alpha: 0.14)
-                          : AppColors.purple.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
+          Reveal(
+            visible: showVolume,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 58, right: 8, top: 4),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => notifier.toggleMute(device.id),
                     child: Icon(
-                      isMuted
+                      device.isMuted
                           ? Icons.volume_off_rounded
-                          : (volume > 0.5
-                              ? Icons.volume_up_rounded
-                              : Icons.volume_down_rounded),
-                      size: 16,
-                      color: isMuted ? AppColors.error : AppColors.purple,
+                          : Icons.volume_up_rounded,
+                      size: 18,
+                      color: AppColors.purple,
                     ),
                   ),
-                ),
-
-                const SizedBox(width: 6),
-
-                // Volume slider
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3.5,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
-                        pressedElevation: 2,
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        thumbShape:
+                            const RoundSliderThumbShape(enabledThumbRadius: 7),
+                        overlayShape:
+                            const RoundSliderOverlayShape(overlayRadius: 14),
                       ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 12,
+                      child: Slider(
+                        value: device.isMuted ? 0 : device.volumeLevel,
+                        onChanged: (v) => notifier.updateVolume(device.id, v),
+                        activeColor: AppColors.purple,
+                        inactiveColor: AppColors.purple.withValues(alpha: 0.15),
                       ),
-                      activeTrackColor:
-                          isMuted ? AppColors.disabled : AppColors.purple,
-                      inactiveTrackColor: isDark
-                          ? const Color(0xFF2E2C44)
-                          : AppColors.cardBorder,
-                      thumbColor:
-                          isMuted ? AppColors.disabled : AppColors.purple,
-                    ),
-                    child: Slider(
-                      value: volume,
-                      onChanged: isMuted
-                          ? null
-                          : (val) {
-                              ref
-                                  .read(connectedDevicesProvider.notifier)
-                                  .updateVolume(device.id, val);
-                            },
                     ),
                   ),
-                ),
-
-                const SizedBox(width: 6),
-
-                // Volume percentage
-                SizedBox(
-                  width: 36,
-                  child: Text(
-                    isMuted ? 'Mute' : '${(volume * 100).toInt()}%',
-                    textAlign: TextAlign.end,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: isMuted ? AppColors.error : AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildAddSecondHeadphoneSlot(
-      BuildContext context, WidgetRef ref, bool isDark) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        DualHeadphoneSetupSheet.show(context);
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF181726) : const Color(0xFFFAF9FD),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppColors.blue.withValues(alpha: 0.35),
-            width: 1.2,
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({required this.color, required this.text});
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _DeviceAvatar extends StatelessWidget {
+  const _DeviceAvatar({required this.type, required this.active});
+  final BluetoothDeviceType type;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (type) {
+      BluetoothDeviceType.speaker => Icons.speaker_rounded,
+      BluetoothDeviceType.carAudio => Icons.directions_car_rounded,
+      _ => Icons.headphones_rounded,
+    };
+    return AnimatedContainer(
+      duration: Motion.medium,
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: active
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.purple, AppColors.blue],
+              )
+            : null,
+        color: active ? null : AppColors.purple.withValues(alpha: 0.10),
+      ),
+      child: Icon(
+        icon,
+        size: 22,
+        color: active ? Colors.white : AppColors.purple,
+      ),
+    );
+  }
+}
+
+class _AddHeadphoneRow extends StatelessWidget {
+  const _AddHeadphoneRow({required this.isFirst});
+  final bool isFirst;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        AppHaptics.light();
+        DualHeadphoneSetupSheet.show(context);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: AppColors.blue.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.purple.withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
               ),
-              child: const Icon(
-                Icons.add_rounded,
-                size: 20,
-                color: AppColors.blue,
-              ),
+              child: const Icon(Icons.add_rounded,
+                  size: 22, color: AppColors.purple),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '+ Connect Headphone 2 for Dual Audio',
-                    style: TextStyle(
-                      fontSize: 12,
+                    isFirst ? 'Connect headphones' : 'Add another headphone',
+                    style: AppTextStyles.labelLarge.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.blue,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Tap for phone-specific dual audio setup & pairing',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: AppColors.blue,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDualAudioHint(
-      BuildContext context, WidgetRef ref, bool isDark) {
-    final String hintText;
-    final IconData hintIcon;
-    final Color iconColor;
-
-    if (_isSharing) {
-      hintText = _count >= 2
-          ? 'Synchronized streaming active on both headphones.'
-          : 'Live audio streaming active on 1 headphone.';
-      hintIcon = Icons.sensors_rounded;
-      iconColor = AppColors.success;
-    } else if (_count >= 2) {
-      hintText = 'Dual Audio ready. Tap for phone-specific Media Output settings.';
-      hintIcon = Icons.speaker_group_rounded;
-      iconColor = AppColors.purple;
-    } else if (_count == 1) {
-      hintText = 'Connect a 2nd headphone below to listen together.';
-      hintIcon = Icons.headphones_rounded;
-      iconColor = AppColors.blue;
-    } else {
-      hintText = 'Turn on Bluetooth headphones or tap to open pairing setup.';
-      hintIcon = Icons.bluetooth_audio_rounded;
-      iconColor = AppColors.textMuted;
-    }
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        DualHeadphoneSetupSheet.show(context);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF161524) : const Color(0xFFF3F2F8),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isDark ? const Color(0xFF26243A) : const Color(0xFFE6E4F0),
-            width: 0.8,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              hintIcon,
-              size: 15,
-              color: iconColor,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                hintText,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 10,
-              color: AppColors.textMuted,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDualActionsBar(
-      BuildContext context, WidgetRef ref, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1A34) : const Color(0xFFF3F1FD),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.35),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                ref.read(audioSharingServiceProvider).openMediaOutputSelector();
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.speaker_group_rounded,
-                      size: 16,
                       color: AppColors.purple,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Media Output Panel',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : AppColors.textPrimary,
-                            ),
-                          ),
-                          const Text(
-                            'Check both devices to stream music',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              color: AppColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Container(
-            height: 24,
-            width: 1,
-            color: isDark ? const Color(0xFF332F4C) : const Color(0xFFDCD8F0),
-            margin: const EdgeInsets.symmetric(horizontal: 6),
-          ),
-          InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              ref.read(audioSharingServiceProvider).openDeveloperSettings();
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.developer_mode_rounded,
-                    size: 15,
-                    color: Color(0xFFF59E0B),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: 3),
                   Text(
-                    'Dev Options',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
+                    'Bluetooth, wired or USB-C',
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 12),
                   ),
                 ],
               ),
             ),
-          ),
-          Container(
-            height: 24,
-            width: 1,
-            color: isDark ? const Color(0xFF332F4C) : const Color(0xFFDCD8F0),
-            margin: const EdgeInsets.symmetric(horizontal: 6),
-          ),
-          InkWell(
-            onTap: () async {
-              HapticFeedback.mediumImpact();
-              await ref.read(audioSharingServiceProvider).playTestChime();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Playing 0.3s test chime on both headphones...'),
-                    duration: Duration(milliseconds: 1200),
-                  ),
-                );
-              }
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.music_note_rounded,
-                    size: 15,
-                    color: AppColors.blue,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Test Sound',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }

@@ -76,6 +76,7 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) return AppColors.purple;
           return AppColors.disabled;
         }),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -148,6 +149,7 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) return AppColors.purple;
           return const Color(0xFF333148);
         }),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

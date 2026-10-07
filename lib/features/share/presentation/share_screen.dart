@@ -8,16 +8,16 @@ import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/animated_widgets.dart';
 import 'package:soundshare/core/widgets/motion/motion.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
-import 'widgets/connected_audio_card.dart';
 import 'widgets/bluetooth_device_card.dart';
 import 'widgets/connected_devices_panel.dart';
 import 'widgets/share_audio_button.dart';
+import 'widgets/share_hero_card.dart';
 import 'widgets/audio_mode_selector_card.dart';
-import 'widgets/peer_sharing_qr_dialog.dart';
 import 'widgets/dual_headphone_setup_sheet.dart';
 // [COMMENTED OUT - BeatSyncCard disabled per SoundShare-only configuration]
 // import '../../beatsync/presentation/widgets/beatsync_card.dart';
@@ -47,121 +47,69 @@ class ShareScreen extends ConsumerWidget {
       }
     });
 
+    final isWifi = activeMode == AudioSharingMode.universalPeerShare;
+    final showDevices = btEnabled || isWifi;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ──────────────────────────────
             const Entrance(child: _AppHeader()),
-
-            // ── Scrollable content ───────────────────
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-
-                    // ── Smart Audio Sharing Mode Selector ────
-                    const Entrance(index: 1, child: AudioModeSelectorCard()),
-
-                    const SizedBox(height: 14),
-
-                    // Universal Peer Share Invite Card
-                    Reveal(
-                      visible:
-                          activeMode == AudioSharingMode.universalPeerShare,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _PeerShareInviteBanner(
-                          isSharing: sharingState == AudioSharingState.sharing,
-                          peersCount: peersCount,
-                          onOpenQr: () => PeerSharingQrDialog.show(context),
-                        ),
+                    Entrance(
+                      index: 1,
+                      child: ShareHeroCard(
+                        connectedDevices: connectedDevices,
+                        sharingState: sharingState,
+                        sharingDuration: sharingDuration,
+                        btEnabled: btEnabled,
+                        activeMode: activeMode,
+                        peersCount: peersCount,
                       ),
                     ),
-
-                    // Bluetooth off / no permission banner
+                    const SizedBox(height: 28),
+                    const Entrance(index: 2, child: AudioModeSelectorCard()),
                     Reveal(
-                      visible: !btEnabled &&
-                          activeMode != AudioSharingMode.universalPeerShare,
-                      child: _BluetoothOffBanner(
-                        onEnable: () async {
-                          try {
-                            await FlutterBluePlus.turnOn();
-                          } catch (_) {}
-                        },
+                      visible: showDevices,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 28),
+                          Entrance(
+                            index: 3,
+                            child: ConnectedDevicesPanel(
+                              connectedDevices: connectedDevices,
+                              sharingState: sharingState,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          Entrance(
+                            index: 4,
+                            child: _BluetoothDevicesSection(
+                              isScanning: isScanning.valueOrNull ?? false,
+                              devices: discoveredDevices,
+                              connectedDevices: connectedDevices,
+                              onScan: () {
+                                final notifier = ref
+                                    .read(discoveredDevicesProvider.notifier);
+                                if (isScanning.valueOrNull == true) {
+                                  notifier.stopScan();
+                                } else {
+                                  notifier.startScan();
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-
-                    if (btEnabled ||
-                        activeMode == AudioSharingMode.universalPeerShare) ...[
-                      // Audio Source card (This Phone)
-                      Entrance(
-                          index: 2,
-                          child: ConnectedAudioCard(
-                            deviceType: BluetoothDeviceType.phone,
-                            deviceName: activeMode ==
-                                    AudioSharingMode.universalPeerShare
-                                ? 'This Phone (Wi-Fi Broadcast)'
-                                : 'This Phone (Media Audio)',
-                            isConnected: btEnabled ||
-                                activeMode ==
-                                    AudioSharingMode.universalPeerShare,
-                            isSharing:
-                                sharingState == AudioSharingState.sharing,
-                            connectedDevicesCount: connectedDevices.length,
-                          )),
-
-                      const SizedBox(height: 14),
-
-                      // Connected Headphones Panel (Dual Headphone Manager)
-                      Entrance(
-                        index: 3,
-                        child: ConnectedDevicesPanel(
-                          connectedDevices: connectedDevices,
-                          sharingState: sharingState,
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // Quick connect & Dual Audio Action Bar
-                      const Entrance(index: 4, child: _DualAudioQuickBar()),
-
-                      const SizedBox(height: 18),
-
-                      // Bluetooth devices section
-                      Entrance(
-                          index: 5,
-                          child: _BluetoothDevicesSection(
-                            isScanning: isScanning.valueOrNull ?? false,
-                            devices: discoveredDevices,
-                            connectedDevices: connectedDevices,
-                            onScan: () {
-                              if (isScanning.valueOrNull == true) {
-                                ref
-                                    .read(discoveredDevicesProvider.notifier)
-                                    .stopScan();
-                              } else {
-                                ref
-                                    .read(discoveredDevicesProvider.notifier)
-                                    .startScan();
-                              }
-                            },
-                          )),
-
-                      const SizedBox(height: 24),
-                    ],
-
-                    if (!btEnabled) ...[
-                      // [COMMENTED OUT - BeatSyncCard per SoundShare-only configuration]
-                      // const BeatSyncCard(),
-                      const SizedBox(height: 24),
-                    ],
                   ],
                 ),
               ),
@@ -169,13 +117,14 @@ class ShareScreen extends ConsumerWidget {
 
             // ── Share Audio button ────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
               child: Entrance(
-                index: 6,
+                index: 5,
                 offset: 28,
                 child: ShareAudioButton(
-                  state:
-                      btEnabled ? sharingState : AudioSharingState.unavailable,
+                  state: showDevices
+                      ? sharingState
+                      : AudioSharingState.unavailable,
                   sharingDuration: sharingDuration,
                   onShare: () {
                     ref.read(audioSharingStateProvider.notifier).startSharing();
@@ -296,56 +245,22 @@ class _BluetoothDevicesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header
-        Row(
-          children: [
-            Text('Available devices', style: AppTextStyles.headingSmall),
-            if (availableDevices.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.purple.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${availableDevices.length}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.purple,
-                  ),
-                ),
-              ),
-            ],
-            const Spacer(),
-            GestureDetector(
-              onTap: () {
-                AppHaptics.light();
-                onScan();
-              },
-              child: Row(
-                children: [
-                  if (isScanning)
-                    const ScanningAnimation(size: 14, color: AppColors.purple)
-                  else
-                    const Icon(
-                      Icons.bluetooth_searching_rounded,
-                      size: 16,
-                      color: AppColors.purple,
-                    ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isScanning ? 'Scanning...' : 'Scan',
-                    style: AppTextStyles.buttonMedium.copyWith(fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        SectionLabel(
+          availableDevices.isEmpty
+              ? 'Nearby devices'
+              : 'Nearby devices  •  ${availableDevices.length}',
+          trailing: SectionAction(
+            label: isScanning ? 'Scanning' : 'Scan',
+            icon: Icons.bluetooth_searching_rounded,
+            leading: isScanning
+                ? const ScanningAnimation(size: 14, color: AppColors.purple)
+                : null,
+            onTap: () {
+              AppHaptics.light();
+              onScan();
+            },
+          ),
         ),
-
-        const SizedBox(height: 12),
 
         // Device list (only show real un-connected devices)
         if (availableDevices.isEmpty && !isScanning)
@@ -399,7 +314,7 @@ class _EmptyDevicesCard extends ConsumerWidget {
                 ? 'All paired headphones are active above'
                 : 'No paired audio devices found nearby',
             style: AppTextStyles.headingSmall.copyWith(
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -432,378 +347,6 @@ class _EmptyDevicesCard extends ConsumerWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────
-// Bluetooth off banner
-// ──────────────────────────────────────────────
-
-class _BluetoothOffBanner extends StatelessWidget {
-  const _BluetoothOffBanner({required this.onEnable});
-  final VoidCallback onEnable;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.errorLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.bluetooth_disabled_rounded,
-              color: AppColors.error, size: 22),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bluetooth is turned off',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  'Turn on Bluetooth to find audio devices.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: onEnable,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Turn On',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// [COMMENTED OUT - Web/QR Broadcast deferred per SoundShare Headphone Connect focus]
-/*
-class _BroadcastLiveCard extends ConsumerWidget {
-  const _BroadcastLiveCard({this.broadcastUrl});
-  final String? broadcastUrl;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF19162C) : const Color(0xFFF3EFFF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.5),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.purple.withValues(alpha: 0.15),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: AppColors.success,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Live Audio Broadcast Active',
-                style: AppTextStyles.headingSmall.copyWith(fontSize: 14),
-              ),
-              const Spacer(),
-              const Icon(Icons.wifi_tethering_rounded, color: AppColors.purple, size: 20),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Friends on the same Wi-Fi or Hotspot can open this link in any browser to listen along:',
-            style: AppTextStyles.bodyMedium.copyWith(fontSize: 12),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF100E1C) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.purple.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    broadcastUrl ?? 'Preparing broadcast stream...',
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.purple,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (broadcastUrl != null)
-                  GestureDetector(
-                    onTap: () {
-                      AppHaptics.light();
-                      Clipboard.setData(ClipboardData(text: broadcastUrl!));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Broadcast link copied to clipboard!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    child: const Icon(
-                      Icons.copy_rounded,
-                      size: 18,
-                      color: AppColors.purple,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-*/
-
-// ──────────────────────────────────────────────
-// Dual Audio Quick Actions Bar
-// ──────────────────────────────────────────────
-
-class _DualAudioQuickBar extends ConsumerWidget {
-  const _DualAudioQuickBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                AppHaptics.light();
-                ref.read(audioSharingServiceProvider).openBluetoothSettings();
-              },
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.bluetooth_audio_rounded,
-                    size: 18,
-                    color: AppColors.purple,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Pair New Device',
-                    style: AppTextStyles.buttonMedium.copyWith(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Container(
-            height: 20,
-            width: 1,
-            color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                AppHaptics.light();
-                DualHeadphoneSetupSheet.show(context);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Icon(
-                    Icons.speaker_group_rounded,
-                    size: 18,
-                    color: AppColors.blue,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Dual Audio / Output',
-                    style: AppTextStyles.buttonMedium.copyWith(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────
-// Universal Peer Share Invite Banner
-// ──────────────────────────────────────────────
-
-class _PeerShareInviteBanner extends StatelessWidget {
-  const _PeerShareInviteBanner({
-    required this.isSharing,
-    required this.peersCount,
-    required this.onOpenQr,
-  });
-
-  final bool isSharing;
-  final int peersCount;
-  final VoidCallback onOpenQr;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isSharing
-              ? [
-                  const Color(0xFF10B981).withValues(alpha: 0.18),
-                  const Color(0xFF059669).withValues(alpha: 0.08),
-                ]
-              : [
-                  AppColors.purple.withValues(alpha: 0.15),
-                  AppColors.blue.withValues(alpha: 0.08),
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isSharing
-              ? const Color(0xFF10B981).withValues(alpha: 0.4)
-              : AppColors.purpleLight.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isSharing
-                  ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                  : AppColors.purple.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isSharing ? Icons.podcasts_rounded : Icons.qr_code_2_rounded,
-              color:
-                  isSharing ? const Color(0xFF32D583) : AppColors.purpleLight,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isSharing
-                      ? (peersCount > 0
-                          ? '$peersCount Friend${peersCount > 1 ? 's' : ''} Listening in Sync'
-                          : 'Live Wi-Fi Stream Broadcasting')
-                      : 'Share Audio with Any Friend',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isSharing
-                      ? 'Tap to show QR code or share link'
-                      : 'Zero data • Works on 100% of phones',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? const Color(0xFFA09EAE)
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () {
-              AppHaptics.light();
-              onOpenQr();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isSharing ? const Color(0xFF10B981) : AppColors.purple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: Text(
-              isSharing ? 'QR Code' : 'Invite',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ),
         ],

@@ -225,7 +225,8 @@ class DiscoveredDevicesNotifier
     if (lower.contains('speaker') || lower.contains('sound') || lower.contains('flip') || lower.contains('boom') || lower.contains('jbl')) {
       return model.BluetoothDeviceType.speaker;
     }
-    return model.BluetoothDeviceType.audioDevice;
+    // Audio devices without a recognisable name are almost always headphones
+    return model.BluetoothDeviceType.headphones;
   }
 
   model.BluetoothDeviceType _inferFromAdvertisement(ScanResult result) {

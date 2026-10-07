@@ -41,22 +41,22 @@ extension AudioSharingModeExtension on AudioSharingMode {
   String get title {
     switch (this) {
       case AudioSharingMode.samsungDualAudio:
-        return 'Dual Bluetooth Audio';
+        return 'Bluetooth';
       case AudioSharingMode.auracastBroadcast:
-        return 'Auracast Broadcast';
+        return 'LE Audio';
       case AudioSharingMode.universalPeerShare:
-        return 'Universal Peer Share';
+        return 'Wi-Fi Share';
     }
   }
 
   String get subtitle {
     switch (this) {
       case AudioSharingMode.samsungDualAudio:
-        return 'Direct simultaneous audio stream to 2 Bluetooth headphones';
+        return 'Two headphones via your phone\'s built-in dual audio';
       case AudioSharingMode.auracastBroadcast:
-        return 'Direct broadcast to LE Audio earbuds (Android 13+)';
+        return 'Android Audio Sharing for LE Audio earbuds';
       case AudioSharingMode.universalPeerShare:
-        return 'Share in real time with a friend via Wi-Fi/Hotspot (100% of phones)';
+        return 'Friends listen on their own phone over Wi-Fi or hotspot';
     }
   }
 
@@ -67,7 +67,7 @@ extension AudioSharingModeExtension on AudioSharingMode {
       case AudioSharingMode.auracastBroadcast:
         return 'AURACAST LE';
       case AudioSharingMode.universalPeerShare:
-        return '100% UNIVERSAL';
+        return 'WI-FI SHARE';
     }
   }
 }

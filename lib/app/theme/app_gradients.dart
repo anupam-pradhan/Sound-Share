@@ -59,9 +59,9 @@ class AppGradients {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: AppColors.purple.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: AppColors.purple.withValues(alpha: 0.26),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       );
@@ -71,7 +71,8 @@ class AppGradients {
         borderRadius: BorderRadius.circular(radius),
       );
 
-  static BoxDecoration disabledButtonOf(BuildContext context, {double radius = 16}) {
+  static BoxDecoration disabledButtonOf(BuildContext context,
+      {double radius = 16}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
       color: isDark ? const Color(0xFF26243A) : AppColors.disabled,

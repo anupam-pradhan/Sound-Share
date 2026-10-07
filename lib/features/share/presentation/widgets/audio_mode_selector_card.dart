@@ -1,211 +1,155 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
 
+/// Compact segmented control for choosing how audio is shared.
 class AudioModeSelectorCard extends ConsumerWidget {
   const AudioModeSelectorCard({super.key});
 
+  static const _modes = [
+    (
+      mode: AudioSharingMode.samsungDualAudio,
+      label: 'Bluetooth',
+      icon: Icons.headphones_rounded,
+    ),
+    (
+      mode: AudioSharingMode.universalPeerShare,
+      label: 'Wi-Fi',
+      icon: Icons.wifi_rounded,
+    ),
+    (
+      mode: AudioSharingMode.auracastBroadcast,
+      label: 'LE Audio',
+      icon: Icons.podcasts_rounded,
+    ),
+  ];
+
+  static String _description(AudioSharingMode mode) => switch (mode) {
+        AudioSharingMode.samsungDualAudio =>
+          'Two headphones on this phone using its built-in dual audio, or Bluetooth + wired.',
+        AudioSharingMode.universalPeerShare =>
+          'Friends on your Wi-Fi or hotspot listen on their own phone. No app needed.',
+        AudioSharingMode.auracastBroadcast =>
+          'Android Audio Sharing for LE Audio earbuds (Android 15+).',
+      };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final capabilityAsync = ref.watch(audioSharingCapabilityProvider);
     final activeMode = ref.watch(activeSharingModeProvider);
+    final recommended =
+        ref.watch(audioSharingCapabilityProvider).valueOrNull?.recommendedMode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedIndex = _modes.indexWhere((m) => m.mode == activeMode);
 
-    final capability = capabilityAsync.valueOrNull;
-    final recommendedMode = capability?.recommendedMode ?? AudioSharingMode.universalPeerShare;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF181628) : AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2E2B45) : AppColors.cardBorder,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.3)
-                : AppColors.purple.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionLabel('Sharing mode'),
+        Container(
+          height: 48,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF17152A) : const Color(0xFFEFEDFA),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Surface.borderColor(context)),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header & Device Badge ──────────────────────
-          Row(
+          child: Stack(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.purple.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.tune_rounded,
-                  color: AppColors.purpleLight,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Audio Sharing Mode',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      capability != null
-                          ? '${capability.deviceManufacturer} • Android ${capability.androidVersion}'
-                          : 'Auto-adapts to your device',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFF9CA3AF) : AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // ── Mode Option Tabs ───────────────────────────
-          Row(
-            children: [
-              _buildModeTab(
-                context: context,
-                ref: ref,
-                mode: AudioSharingMode.samsungDualAudio,
-                activeMode: activeMode,
-                recommendedMode: recommendedMode,
-                icon: Icons.headphones_rounded,
-                label: 'Dual BT',
-                isDark: isDark,
-              ),
-              const SizedBox(width: 8),
-              _buildModeTab(
-                context: context,
-                ref: ref,
-                mode: AudioSharingMode.universalPeerShare,
-                activeMode: activeMode,
-                recommendedMode: recommendedMode,
-                icon: Icons.wifi_tethering_rounded,
-                label: 'Universal',
-                isDark: isDark,
-              ),
-              const SizedBox(width: 8),
-              _buildModeTab(
-                context: context,
-                ref: ref,
-                mode: AudioSharingMode.auracastBroadcast,
-                activeMode: activeMode,
-                recommendedMode: recommendedMode,
-                icon: Icons.podcasts_rounded,
-                label: 'Auracast',
-                isDark: isDark,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // ── Selected Mode Description & Quick Action ──
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF100E1C) : const Color(0xFFF6F5FD),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? const Color(0xFF26223B) : const Color(0xFFE8E5FA),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _getModeIcon(activeMode),
-                      size: 16,
-                      color: AppColors.purpleLight,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      activeMode.title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              // Sliding selection indicator
+              Positioned.fill(
+                child: AnimatedAlign(
+                  duration:
+                      Motion.reduced(context) ? Duration.zero : Motion.medium,
+                  curve: Motion.emphasized,
+                  alignment: Alignment(-1 + selectedIndex.clamp(0, 2) * 1.0, 0),
+                  child: FractionallySizedBox(
+                    widthFactor: 1 / _modes.length,
+                    heightFactor: 1,
+                    child: Container(
                       decoration: BoxDecoration(
-                        color: activeMode == recommendedMode
-                            ? const Color(0xFF12B76A).withValues(alpha: 0.15)
-                            : AppColors.purple.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        activeMode == recommendedMode
-                            ? 'AUTO-ADOPTED'
-                            : activeMode.badgeText,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: activeMode == recommendedMode
-                              ? const Color(0xFF32D583)
-                              : AppColors.purpleLight,
-                        ),
+                        color: isDark
+                            ? const Color(0xFF2E2A4A)
+                            : Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.purple
+                                .withValues(alpha: isDark ? 0.0 : 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _getModeDescription(activeMode),
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.4,
-                    color: isDark ? const Color(0xFFA09EAE) : AppColors.textSecondary,
                   ),
                 ),
-
-                if (activeMode == AudioSharingMode.samsungDualAudio) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        AppHaptics.light();
-                        ref.read(audioSharingServiceProvider).openMediaOutputSelector();
-                      },
-                      icon: const Icon(Icons.settings_suggest_rounded, size: 16),
-                      label: const Text(
-                        'Open Samsung Media Output / Dual Audio Panel',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    for (final m in _modes)
+                      Expanded(
+                        child: _Segment(
+                          label: m.label,
+                          icon: m.icon,
+                          selected: m.mode == activeMode,
+                          onTap: () {
+                            AppHaptics.selection();
+                            ref
+                                .read(activeSharingModeProvider.notifier)
+                                .setMode(m.mode);
+                          },
+                        ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.purpleLight,
-                        side: BorderSide(color: AppColors.purpleLight.withValues(alpha: 0.5)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: AnimatedSwitcher(
+            duration: Motion.medium,
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.topLeft,
+              children: [...previous, if (current != null) current],
+            ),
+            child: Row(
+              key: ValueKey(activeMode),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    _description(activeMode),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                if (activeMode == recommended) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Best for this phone',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
                       ),
                     ),
                   ),
@@ -213,90 +157,52 @@ class AudioModeSelectorCard extends ConsumerWidget {
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildModeTab({
-    required BuildContext context,
-    required WidgetRef ref,
-    required AudioSharingMode mode,
-    required AudioSharingMode activeMode,
-    required AudioSharingMode recommendedMode,
-    required IconData icon,
-    required String label,
-    required bool isDark,
-  }) {
-    final isSelected = mode == activeMode;
-    final isRecommended = mode == recommendedMode;
+class _Segment extends StatelessWidget {
+  const _Segment({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
 
-    return Expanded(
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.purple : AppColors.textSecondary;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label sharing mode',
       child: GestureDetector(
-        onTap: () {
-          AppHaptics.selection();
-          ref.read(activeSharingModeProvider.notifier).setMode(mode);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? const Color(0xFF6C5CE7) : AppColors.purple)
-                : (isDark ? const Color(0xFF100E1C) : const Color(0xFFF1F0FA)),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? Colors.transparent
-                  : (isRecommended
-                      ? const Color(0xFF12B76A).withValues(alpha: 0.5)
-                      : Colors.transparent),
-              width: 1,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            AnimatedDefaultTextStyle(
+              duration: Motion.fast,
+              style: AppTextStyles.labelMedium.copyWith(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+              child: Text(label),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? const Color(0xFF9CA3AF) : AppColors.textSecondary),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark ? const Color(0xFFD1D5DB) : AppColors.textPrimary),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
-  }
-
-  IconData _getModeIcon(AudioSharingMode mode) {
-    return switch (mode) {
-      AudioSharingMode.samsungDualAudio => Icons.headphones_rounded,
-      AudioSharingMode.auracastBroadcast => Icons.podcasts_rounded,
-      AudioSharingMode.universalPeerShare => Icons.wifi_tethering_rounded,
-    };
-  }
-
-  String _getModeDescription(AudioSharingMode mode) {
-    return switch (mode) {
-      AudioSharingMode.samsungDualAudio =>
-        'Direct synchronized audio streaming from this phone to 2 connected Bluetooth headphones simultaneously on Samsung, Pixel, Xiaomi, OnePlus & Android devices.',
-      AudioSharingMode.auracastBroadcast =>
-        'Directly broadcasts high-efficiency LC3 audio to any nearby Auracast or Bluetooth LE Audio earbuds without requiring a second phone.',
-      AudioSharingMode.universalPeerShare =>
-        'Works on 100% of smartphones. Streams in real time over local Wi-Fi / Hotspot with zero mobile data to friends listening in web browsers.',
-    };
   }
 }
