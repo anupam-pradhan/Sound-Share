@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/audio_flow_animation.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
@@ -71,7 +72,10 @@ class ConnectedDevicesPanel extends ConsumerWidget {
 
           // Headphone Slots
           if (_count == 0)
-            _buildEmptyPrompt(context, ref)
+            Entrance(
+              key: const ValueKey('empty-prompt'),
+              child: _buildEmptyPrompt(context, ref),
+            )
           else ...[
             // Headphone 1
             _buildHeadphoneCard(
@@ -105,14 +109,21 @@ class ConnectedDevicesPanel extends ConsumerWidget {
                 ),
               ],
             ] else ...[
-              _buildAddSecondHeadphoneSlot(context, ref, isDark),
+              Entrance(
+                key: const ValueKey('add-second-slot'),
+                index: 1,
+                child: _buildAddSecondHeadphoneSlot(context, ref, isDark),
+              ),
             ],
           ],
 
-          if (_count >= 2) ...[
-            const SizedBox(height: 12),
-            _buildDualActionsBar(context, ref, isDark),
-          ],
+          Reveal(
+            visible: _count >= 2,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _buildDualActionsBar(context, ref, isDark),
+            ),
+          ),
 
           // Dual Audio OS hint
           const SizedBox(height: 14),
@@ -331,7 +342,28 @@ class ConnectedDevicesPanel extends ConsumerWidget {
     );
   }
 
+  /// Each headphone card animates in when it connects (keyed by device id).
   Widget _buildHeadphoneCard({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BluetoothDeviceModel device,
+    required int index,
+    required bool isDark,
+  }) {
+    return Entrance(
+      key: ValueKey('headphone-${device.id}'),
+      index: index - 1,
+      child: _buildHeadphoneCardBody(
+        context: context,
+        ref: ref,
+        device: device,
+        index: index,
+        isDark: isDark,
+      ),
+    );
+  }
+
+  Widget _buildHeadphoneCardBody({
     required BuildContext context,
     required WidgetRef ref,
     required BluetoothDeviceModel device,

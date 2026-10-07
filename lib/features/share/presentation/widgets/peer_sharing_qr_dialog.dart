@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 
 class PeerSharingQrDialog extends ConsumerWidget {
@@ -53,7 +54,8 @@ class PeerSharingQrDialog extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF12B76A).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -117,7 +119,8 @@ class PeerSharingQrDialog extends ConsumerWidget {
               color: isDark ? const Color(0xFF1D1B30) : const Color(0xFFF4F3FB),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: isDark ? const Color(0xFF343050) : const Color(0xFFE2E0F5),
+                color:
+                    isDark ? const Color(0xFF343050) : const Color(0xFFE2E0F5),
               ),
             ),
             child: Column(
@@ -149,10 +152,12 @@ class PeerSharingQrDialog extends ConsumerWidget {
                       onPressed: broadcastUrl != null
                           ? () {
                               AppHaptics.light();
-                              Clipboard.setData(ClipboardData(text: broadcastUrl));
+                              Clipboard.setData(
+                                  ClipboardData(text: broadcastUrl));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Stream link copied to clipboard!'),
+                                  content:
+                                      Text('Stream link copied to clipboard!'),
                                   duration: Duration(seconds: 2),
                                 ),
                               );
@@ -168,25 +173,36 @@ class PeerSharingQrDialog extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ── Step-by-step Instructions ──────────────────
-          _buildInstructionStep(
-            number: '1',
-            title: 'Connect Devices',
-            desc: 'Ensure your friend is connected to your Hotspot or same Wi-Fi.',
-            isDark: isDark,
+          Entrance(
+            index: 2,
+            child: _buildInstructionStep(
+              number: '1',
+              title: 'Connect Devices',
+              desc:
+                  'Ensure your friend is connected to your Hotspot or same Wi-Fi.',
+              isDark: isDark,
+            ),
           ),
           const SizedBox(height: 12),
-          _buildInstructionStep(
-            number: '2',
-            title: 'Open Stream Link',
-            desc: 'Friend opens the link in Chrome/Safari or SoundShare.',
-            isDark: isDark,
+          Entrance(
+            index: 3,
+            child: _buildInstructionStep(
+              number: '2',
+              title: 'Open Stream Link',
+              desc: 'Friend opens the link in Chrome/Safari or SoundShare.',
+              isDark: isDark,
+            ),
           ),
           const SizedBox(height: 12),
-          _buildInstructionStep(
-            number: '3',
-            title: 'Plug In & Enjoy',
-            desc: 'Friend connects their headphones to their phone and hears live audio!',
-            isDark: isDark,
+          Entrance(
+            index: 4,
+            child: _buildInstructionStep(
+              number: '3',
+              title: 'Plug In & Enjoy',
+              desc:
+                  'Friend connects their headphones to their phone and hears live audio!',
+              isDark: isDark,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -212,7 +228,8 @@ class PeerSharingQrDialog extends ConsumerWidget {
                 backgroundColor: AppColors.purple,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 elevation: 4,
               ),
             ),
@@ -265,7 +282,9 @@ class PeerSharingQrDialog extends ConsumerWidget {
                 desc,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDark ? const Color(0xFF9CA3AF) : AppColors.textSecondary,
+                  color: isDark
+                      ? const Color(0xFF9CA3AF)
+                      : AppColors.textSecondary,
                 ),
               ),
             ],

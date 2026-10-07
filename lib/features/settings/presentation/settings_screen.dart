@@ -10,6 +10,7 @@ import '../../../features/bluetooth/domain/bluetooth_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
 // [COMMENTED OUT - BeatSync & Spatial Audio disabled per SoundShare-only configuration]
 // import '../../../features/beatsync/domain/beatsync_providers.dart';
 // import '../../../features/spatial_audio/domain/spatial_audio_providers.dart';
@@ -30,7 +31,8 @@ final stayVisibleProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
   return _PrefNotifier('stay_visible', defaultValue: false);
 });
 
-final notificationsEnabledProvider = StateNotifierProvider<_PrefNotifier, bool>((ref) {
+final notificationsEnabledProvider =
+    StateNotifierProvider<_PrefNotifier, bool>((ref) {
   return _PrefNotifier('notifications_enabled', defaultValue: true);
 });
 
@@ -96,12 +98,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Padding(
+            Entrance(
+                child: Padding(
               padding: const EdgeInsets.fromLTRB(4, 8, 16, 4),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                    icon:
+                        const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                     color: AppColors.textPrimary,
                     onPressed: () {
                       AppHaptics.light();
@@ -111,7 +115,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text('Settings', style: AppTextStyles.headingLarge),
                 ],
               ),
-            ),
+            )),
 
             Expanded(
               child: SingleChildScrollView(
@@ -121,6 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   children: [
                     // Bluetooth section
                     _SettingsCard(
+                      index: 1,
                       children: [
                         _SettingsRow(
                           icon: Icons.bluetooth_rounded,
@@ -143,6 +148,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     // Audio section
                     _SettingsCard(
+                      index: 2,
                       children: [
                         _SettingsRow(
                           icon: Icons.graphic_eq_rounded,
@@ -193,7 +199,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         InkWell(
                           onTap: () {
                             AppHaptics.light();
-                            ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+                            ref
+                                .read(audioSharingServiceProvider)
+                                .openMediaOutputSelector();
                           },
                           child: const _SettingsRow(
                             icon: Icons.speaker_group_rounded,
@@ -238,6 +246,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     // Preferences section
                     _SettingsCard(
+                      index: 3,
                       children: [
                         _SettingsRow(
                           icon: Icons.notifications_active_outlined,
@@ -263,7 +272,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             value: themeMode == ThemeMode.dark,
                             onChanged: (_) {
                               AppHaptics.light();
-                              ref.read(themeModeProvider.notifier).toggleTheme();
+                              ref
+                                  .read(themeModeProvider.notifier)
+                                  .toggleTheme();
                             },
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
@@ -288,7 +299,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           icon: Icons.visibility_outlined,
                           iconColor: AppColors.blue,
                           label: 'Stay visible',
-                          subtitle: 'Allow nearby devices to discover SoundShare',
+                          subtitle:
+                              'Allow nearby devices to discover SoundShare',
                           trailing: Switch(
                             value: stayVisible,
                             onChanged: (_) =>
@@ -304,9 +316,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     // Legal & About
                     _SettingsCard(
+                      index: 4,
                       children: [
                         InkWell(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16)),
                           onTap: () {
                             AppHaptics.light();
                             RateAppDialog.show(context);
@@ -319,11 +333,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                                Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded,
+                                    size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded,
+                                    size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded,
+                                    size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded,
+                                    size: 16, color: Colors.amber),
+                                Icon(Icons.star_rounded,
+                                    size: 16, color: Colors.amber),
                                 SizedBox(width: 4),
                                 Icon(
                                   Icons.chevron_right_rounded,
@@ -354,7 +373,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                         _Divider(),
                         InkWell(
-                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(16)),
                           onTap: () => AboutSoundShareSheet.show(
                             context,
                             version: _version,
@@ -368,9 +388,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  _version.isNotEmpty
-                                      ? 'v$_version'
-                                      : 'v1.0.0',
+                                  _version.isNotEmpty ? 'v$_version' : 'v1.0.0',
                                   style: AppTextStyles.labelMedium.copyWith(
                                     color: AppColors.textMuted,
                                   ),
@@ -420,32 +438,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 // ──────────────────────────────────────────────
 
 class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({required this.children});
+  const _SettingsCard({required this.children, this.index = 0});
   final List<Widget> children;
+
+  /// Stagger position for the entrance animation.
+  final int index;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.25)
-                : AppColors.cardShadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Entrance(
+      index: index,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.25)
+                  : AppColors.cardShadow,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(children: children),
       ),
-      child: Column(children: children),
     );
   }
 }

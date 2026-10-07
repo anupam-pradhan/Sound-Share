@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
 
 /// Full-width gradient Share Audio button with all state transitions.
@@ -40,7 +41,14 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
     _glow = Tween<double>(begin: 0.3, end: 1.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
-    if (widget.state == AudioSharingState.sharing) {
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.state == AudioSharingState.sharing &&
+        !Motion.reduced(context) &&
+        !_glowController.isAnimating) {
       _glowController.repeat(reverse: true);
     }
   }
@@ -48,7 +56,9 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
   @override
   void didUpdateWidget(ShareAudioButton old) {
     super.didUpdateWidget(old);
+    final reduceMotion = Motion.reduced(context);
     if (widget.state == AudioSharingState.sharing &&
+        !reduceMotion &&
         !_glowController.isAnimating) {
       _glowController.repeat(reverse: true);
     } else if (widget.state != AudioSharingState.sharing) {
@@ -143,25 +153,47 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (_isLoading)
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    else
-                      _ButtonIcon(
-                        isSharing: _isSharing,
-                        isEnabled: active,
+                    AnimatedSwitcher(
+                      duration: Motion.medium,
+                      transitionBuilder: (child, animation) => ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(opacity: animation, child: child),
                       ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              key: ValueKey('loading'),
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : _ButtonIcon(
+                              key: ValueKey('icon-$_isSharing-$active'),
+                              isSharing: _isSharing,
+                              isEnabled: active,
+                            ),
+                    ),
                     const SizedBox(width: 10),
-                    Text(
-                      _label,
-                      style: AppTextStyles.buttonLarge.copyWith(
-                        color: active ? Colors.white : AppColors.disabledText,
+                    AnimatedSwitcher(
+                      duration: Motion.medium,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween(
+                            begin: const Offset(0, 0.35),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      ),
+                      child: Text(
+                        _label,
+                        key: ValueKey(_label),
+                        style: AppTextStyles.buttonLarge.copyWith(
+                          color: active ? Colors.white : AppColors.disabledText,
+                        ),
                       ),
                     ),
                     if (_isSharing &&
@@ -197,7 +229,11 @@ class _ShareAudioButtonState extends State<ShareAudioButton>
 }
 
 class _ButtonIcon extends StatelessWidget {
-  const _ButtonIcon({required this.isSharing, required this.isEnabled});
+  const _ButtonIcon({
+    super.key,
+    required this.isSharing,
+    required this.isEnabled,
+  });
   final bool isSharing;
   final bool isEnabled;
 

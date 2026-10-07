@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
@@ -137,12 +138,12 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Current connection status banner
-                  _buildStatusBanner(status, connected, isDark),
+                  Entrance(child: _buildStatusBanner(status, connected, isDark)),
 
                   const SizedBox(height: 18),
 
                   // Phone-specific instructions card
-                  _buildModeGuide(status, isDark),
+                  Entrance(index: 1, child: _buildModeGuide(status, isDark)),
 
                   const SizedBox(height: 20),
 
@@ -526,7 +527,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return PressableScale(
+      onTap: onTap,
+      child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
@@ -578,6 +581,7 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
             Icon(Icons.chevron_right_rounded, size: 20, color: color),
           ],
         ),
+      ),
       ),
     );
   }

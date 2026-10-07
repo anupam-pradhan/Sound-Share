@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
 import 'package:soundshare/features/splash/splash_screen.dart';
 import 'package:soundshare/features/permissions/permission_screen.dart';
 import 'package:soundshare/features/share/presentation/share_screen.dart';
@@ -38,9 +39,14 @@ final appRouter = GoRouter(
     */
 
     // Main shell with bottom nav
-    StatefulShellRoute.indexedStack(
+    StatefulShellRoute(
       builder: (context, state, navigationShell) =>
           MainShell(navigationShell: navigationShell),
+      navigatorContainerBuilder: (context, navigationShell, children) =>
+          FadeThroughBranchContainer(
+        currentIndex: navigationShell.currentIndex,
+        children: children,
+      ),
       branches: [
         StatefulShellBranch(
           routes: [
