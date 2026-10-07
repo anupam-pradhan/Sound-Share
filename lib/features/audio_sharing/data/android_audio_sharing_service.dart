@@ -183,6 +183,27 @@ class AndroidAudioSharingService implements AudioSharingService {
     }
   }
 
+  @override
+  Future<DualAudioStatus> getDualAudioStatus() async {
+    try {
+      final res = await _channel
+          .invokeMethod<Map<Object?, Object?>>('getDualAudioStatus');
+      return res == null ? DualAudioStatus.unknown : DualAudioStatus.fromMap(res);
+    } on PlatformException {
+      return DualAudioStatus.unknown;
+    }
+  }
+
+  @override
+  Future<bool> openAudioSharingSettings() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('openAudioSharingSettings');
+      return res ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Start local broadcast server with port fallback and high-fidelity Web Audio receiver.
   Future<void> _startLocalBroadcastServer() async {
     await _stopLocalBroadcastServer();

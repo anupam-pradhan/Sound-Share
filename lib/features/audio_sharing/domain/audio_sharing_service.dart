@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:soundshare/features/audio_sharing/domain/dual_audio_status.dart';
+
+export 'package:soundshare/features/audio_sharing/domain/dual_audio_status.dart';
+
 /// Audio sharing state machine.
 enum AudioSharingState {
   /// No secondary device connected — sharing unavailable.
@@ -162,6 +166,12 @@ abstract class AudioSharingService {
 
   /// Play a brief 0.35s pleasant test chime on all connected outputs to verify dual connection.
   Future<bool> playTestChime();
+
+  /// What this phone can really do with two headphones right now.
+  Future<DualAudioStatus> getDualAudioStatus();
+
+  /// Open Android 15+/16 LE Audio "Audio sharing" (falls back to Bluetooth settings).
+  Future<bool> openAudioSharingSettings();
 
   /// Dispose resources.
   void dispose();

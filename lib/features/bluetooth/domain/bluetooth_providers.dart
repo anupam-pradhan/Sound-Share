@@ -14,6 +14,10 @@ String _normalizeDeviceName(String name) {
       .trim();
 }
 
+final _macAddressPattern = RegExp(r'^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$');
+
+bool _looksLikeMac(String value) => _macAddressPattern.hasMatch(value);
+
 // ──────────────────────────────────────────────
 // Bluetooth Adapter State
 // ──────────────────────────────────────────────
@@ -273,10 +277,24 @@ class ConnectedDevicesNotifier
   static const _btChannel = MethodChannel('com.soundshare/bluetooth');
   StreamSubscription<dynamic>? _audioEventSub;
   Timer? _pollTimer;
+  final _dualAudioUnavailableController =
+      StreamController<Map<Object?, Object?>>.broadcast();
+
+  /// Fires when sharing started with two headphones connected but the phone
+  /// can only play to one; payload is the native dual-audio status map.
+  Stream<Map<Object?, Object?>> get dualAudioUnavailable =>
+      _dualAudioUnavailableController.stream;
 
   void _initNativeAudioListener() {
     try {
       _audioEventSub = _audioEventsChannel.receiveBroadcastStream().listen((data) {
+        if (data is Map && data['event'] == 'dual_audio_unavailable') {
+          final status = data['status'];
+          if (status is Map<Object?, Object?>) {
+            _dualAudioUnavailableController.add(status);
+          }
+          return;
+        }
         refreshConnectedDevices();
       }, onError: (_) {});
     } catch (_) {}
@@ -298,6 +316,7 @@ class ConnectedDevicesNotifier
             final name = (item['productName'] as String?) ?? '';
             final id = (item['id'] as String?) ?? name;
             final address = (item['address'] as String?) ?? '';
+            final isAudioActive = (item['isActive'] as bool?) ?? true;
 
             // Filter out empty / unknown names
             if (name.trim().isEmpty ||
@@ -312,9 +331,11 @@ class ConnectedDevicesNotifier
                 typeStr.contains('headphone') ||
                 typeStr.contains('headset')) {
               final normName = _normalizeDeviceName(name).toLowerCase();
+              // Match by MAC when known: two headphones of the same model share a name
               final isAlreadyInActiveList = activeList.any((d) =>
-                  (address.isNotEmpty && d.id == address) ||
-                  _normalizeDeviceName(d.name).toLowerCase() == normName);
+                  address.isNotEmpty && _looksLikeMac(d.id)
+                      ? d.id.toUpperCase() == address.toUpperCase()
+                      : _normalizeDeviceName(d.name).toLowerCase() == normName);
 
               if (isAlreadyInActiveList) {
                 continue;
@@ -333,7 +354,8 @@ class ConnectedDevicesNotifier
                 (d) =>
                     d.id == id ||
                     (address.isNotEmpty && d.id == address) ||
-                    _normalizeDeviceName(d.name).toLowerCase() == normName,
+                    (address.isEmpty &&
+                        _normalizeDeviceName(d.name).toLowerCase() == normName),
                 orElse: () => model.BluetoothDeviceModel(
                   id: address.isNotEmpty ? address : id,
                   name: name,
@@ -345,6 +367,7 @@ class ConnectedDevicesNotifier
               activeList.add(existing.copyWith(
                 name: name,
                 connectionState: model.DeviceConnectionState.connected,
+                isAudioActive: isAudioActive,
               ));
             }
           }
@@ -433,9 +456,16 @@ class ConnectedDevicesNotifier
   void dispose() {
     _pollTimer?.cancel();
     _audioEventSub?.cancel();
+    _dualAudioUnavailableController.close();
     super.dispose();
   }
 }
+
+/// Emits when the phone can only play to one of two connected headphones.
+final dualAudioUnavailableProvider =
+    StreamProvider<Map<Object?, Object?>>((ref) {
+  return ref.watch(connectedDevicesProvider.notifier).dualAudioUnavailable;
+});
 
 // ──────────────────────────────────────────────
 // Connecting in-progress set

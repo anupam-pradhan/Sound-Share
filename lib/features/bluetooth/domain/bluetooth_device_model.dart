@@ -30,6 +30,7 @@ class BluetoothDeviceModel {
     this.rssi,
     this.volumeLevel = 0.85,
     this.isMuted = false,
+    this.isAudioActive = true,
   });
 
   final String id;
@@ -49,6 +50,10 @@ class BluetoothDeviceModel {
   /// Whether this individual device is muted
   final bool isMuted;
 
+  /// False when the headphone is connected but Android is not sending it media
+  /// (stock Android plays to only one classic Bluetooth headphone at a time).
+  final bool isAudioActive;
+
   BluetoothDeviceModel copyWith({
     String? id,
     String? name,
@@ -58,6 +63,7 @@ class BluetoothDeviceModel {
     int? rssi,
     double? volumeLevel,
     bool? isMuted,
+    bool? isAudioActive,
   }) {
     return BluetoothDeviceModel(
       id: id ?? this.id,
@@ -68,6 +74,7 @@ class BluetoothDeviceModel {
       rssi: rssi ?? this.rssi,
       volumeLevel: volumeLevel ?? this.volumeLevel,
       isMuted: isMuted ?? this.isMuted,
+      isAudioActive: isAudioActive ?? this.isAudioActive,
     );
   }
 

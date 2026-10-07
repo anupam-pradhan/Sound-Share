@@ -4,7 +4,7 @@ import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 
-/// Interactive About Modal Sheet detailing the app's mission by solo developer Anupam Pradhan.
+/// Interactive About Modal Sheet describing SoundShare and the company behind it.
 class AboutSoundShareSheet extends StatelessWidget {
   const AboutSoundShareSheet({super.key, required this.version});
 
@@ -99,14 +99,14 @@ class AboutSoundShareSheet extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.favorite_rounded,
+                          Icons.verified_rounded,
                           size: 16,
                           color: AppColors.purple,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Crafted by Anupam Pradhan',
+                        'Developed by Cevrynt',
                         style: AppTextStyles.labelLarge.copyWith(
                           color: AppColors.purple,
                           fontWeight: FontWeight.w700,
@@ -116,7 +116,7 @@ class AboutSoundShareSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Built with passion as an independent solo project. SoundShare was created with a clear promise: 100% free, zero ads, and no recurring subscriptions.',
+                    'SoundShare is developed and maintained by Cevrynt. We build reliable audio tools that let you share sound with the people around you.',
                     style: AppTextStyles.bodyMedium.copyWith(height: 1.45),
                   ),
                 ],
@@ -128,8 +128,8 @@ class AboutSoundShareSheet extends StatelessWidget {
             // Feature Highlights
             const _FeatureRow(
               icon: Icons.block_rounded,
-              title: 'No Ads & No Paywalls',
-              description: 'Pure listening experience with zero interruptions or subscriptions.',
+              title: 'Ad-Free Experience',
+              description: 'A clean listening experience with no ad interruptions.',
             ),
             const SizedBox(height: 12),
             const _FeatureRow(

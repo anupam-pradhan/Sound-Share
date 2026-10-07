@@ -34,6 +34,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.util.Collections
 import android.os.Process
+import android.os.SystemClock
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -78,6 +79,12 @@ class MainActivity : FlutterActivity() {
     private var liveStreamServer: ServerSocket? = null
     private val liveStreamClients = Collections.synchronizedList(mutableListOf<Socket>())
     private var isStreamingServerRunning = false
+    @Volatile private var streamSampleRate = 44100
+
+    private companion object {
+        const val PRIMARY_ROUTE_PROBE_MS = 300L
+        const val PROBE_SILENCE_FRAMES = 1024
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -182,6 +189,12 @@ class MainActivity : FlutterActivity() {
                     "openMediaOutputSelector" -> {
                         result.success(openMediaOutputSelector())
                     }
+                    "getDualAudioStatus" -> {
+                        result.success(getDualAudioStatus())
+                    }
+                    "openAudioSharingSettings" -> {
+                        result.success(openAudioSharingSettings())
+                    }
                     "openPlayStore" -> {
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")).apply {
@@ -281,6 +294,33 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {
             openBluetoothSettings()
         }
+    }
+
+    @Suppress("MissingPermission")
+    private fun getDualAudioStatus(): Map<String, Any> {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val connected = try {
+            a2dpProfile?.connectedDevices.orEmpty()
+        } catch (e: SecurityException) {
+            Log.w("SoundShare", "BLUETOOTH_CONNECT missing for A2DP query: ${e.message}")
+            emptyList()
+        }
+        return DualAudioRouter.evaluate(audioManager, connected)
+    }
+
+    /** Android 15+/16 LE Audio "Audio sharing" page; falls back to Bluetooth settings. */
+    private fun openAudioSharingSettings(): Boolean {
+        val candidates = listOf(
+            "android.settings.BLUETOOTH_AUDIO_SHARING_SETTINGS",
+            "com.android.settings.BLUETOOTH_AUDIO_SHARING_SETTINGS"
+        )
+        for (action in candidates) {
+            try {
+                startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return true
+            } catch (_: Exception) {}
+        }
+        return openBluetoothSettings()
     }
 
     private fun openDeveloperSettings(): Boolean {
@@ -466,12 +506,20 @@ class MainActivity : FlutterActivity() {
                     !pName.equals("Unknown Device", ignoreCase = true) &&
                     !pName.startsWith("Unknown", ignoreCase = true)) {
 
-                    // Deduplicate so Left & Right earbuds of the same pair don't show twice
+                    // Deduplicate so Left & Right earbuds of the same pair don't show twice.
+                    // Prefer the MAC address: two headphones of the same model share a name.
+                    val isLeAudio = device.type == 26 || device.type == 27
                     val isDuplicate = isBt && devices.any { existing ->
                         val exAddr = existing["address"] as? String ?: ""
                         val exName = existing["productName"] as? String ?: ""
-                        (devAddr.isNotEmpty() && exAddr.isNotEmpty() && exAddr.equals(devAddr, ignoreCase = true)) ||
-                                normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                        val sameName = normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
+                        val bothHaveAddress = devAddr.isNotEmpty() && exAddr.isNotEmpty()
+                        when {
+                            bothHaveAddress && exAddr.equals(devAddr, ignoreCase = true) -> true
+                            // LE Audio earbuds expose left/right with different addresses
+                            bothHaveAddress -> isLeAudio && sameName
+                            else -> sameName
+                        }
                     }
 
                     if (!isDuplicate) {
@@ -483,7 +531,8 @@ class MainActivity : FlutterActivity() {
                                 "productName" to pName,
                                 "address" to devAddr,
                                 "isBluetooth" to isBt,
-                                "isConnected" to true
+                                "isConnected" to true,
+                                "isActive" to true
                             )
                         )
                     }
@@ -491,7 +540,8 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Cross-reference with A2DP profile proxy to detect second connected Bluetooth headphone
+        // Cross-reference with A2DP profile proxy to list a second connected headphone.
+        // Android keeps only one A2DP sink active, so these are flagged isActive=false.
         try {
             a2dpProfile?.connectedDevices?.forEach { btDev ->
                 val name = btDev.name ?: ""
@@ -503,8 +553,11 @@ class MainActivity : FlutterActivity() {
                     val alreadyAdded = devices.any {
                         val dAddr = it["address"] as? String ?: ""
                         val dName = it["productName"] as? String ?: ""
-                        (addr.isNotEmpty() && dAddr.equals(addr, ignoreCase = true)) ||
-                                normalizeAudioDeviceName(dName).equals(normalizeAudioDeviceName(name), ignoreCase = true)
+                        if (addr.isNotEmpty() && dAddr.isNotEmpty()) {
+                            dAddr.equals(addr, ignoreCase = true)
+                        } else {
+                            normalizeAudioDeviceName(dName).equals(normalizeAudioDeviceName(name), ignoreCase = true)
+                        }
                     }
                     if (!alreadyAdded) {
                         devices.add(
@@ -515,7 +568,8 @@ class MainActivity : FlutterActivity() {
                                 "productName" to name,
                                 "address" to addr,
                                 "isBluetooth" to true,
-                                "isConnected" to true
+                                "isConnected" to true,
+                                "isActive" to false
                             )
                         )
                     }
@@ -666,25 +720,8 @@ class MainActivity : FlutterActivity() {
             val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             val bufferSize = (minBufferSize * 2).coerceAtLeast(totalShorts * 2)
 
-            // Find distinct connected Bluetooth outputs (deduplicating Left/Right earbuds)
-            val allOutputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
-                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                    it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                }
-            } else emptyList()
-
-            val distinctOutputs = mutableListOf<AudioDeviceInfo>()
-            allOutputs.forEach { dev ->
-                val pName = dev.productName?.toString() ?: ""
-                val isDup = distinctOutputs.any {
-                    val exName = it.productName?.toString() ?: ""
-                    normalizeAudioDeviceName(exName).equals(normalizeAudioDeviceName(pName), ignoreCase = true)
-                }
-                if (!isDup) {
-                    distinctOutputs.add(dev)
-                }
-            }
+            // One entry per physical headphone; SCO excluded so the chime never opens a call link
+            val distinctOutputs = DualAudioRouter.physicalMediaOutputs(audioManager)
 
             val tempTracks = mutableListOf<AudioTrack>()
             try {
@@ -908,25 +945,8 @@ class MainActivity : FlutterActivity() {
             val minRecordBuf = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             val recordBufSize = if (minRecordBuf > 0) (minRecordBuf * 2).coerceAtLeast(4096) else 8192
 
-            val minTrackBuf = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, audioFormat)
-            val trackBufSize = if (minTrackBuf > 0) (minTrackBuf * 2).coerceAtLeast(4096) else 8192
-
-            // Find distinct outputs across Bluetooth, Wired, USB-C, and BLE
-            val allOutputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                it.type == 26 || it.type == 27 || it.type == 30 ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-            }
-            val distinctOutputs = mutableListOf<AudioDeviceInfo>()
-            allOutputs.forEach { dev ->
-                if (!distinctOutputs.any { it.id == dev.id }) {
-                    distinctOutputs.add(dev)
-                }
-            }
+            // One entry per physical headphone (SCO call channel excluded)
+            val physicalOutputs = DualAudioRouter.physicalMediaOutputs(audioManager)
 
             try {
                 // EXCLUDE own app UID to avoid infinite audio capture feedback/looping
@@ -972,7 +992,12 @@ class MainActivity : FlutterActivity() {
 
                 audioRecord = record
 
-                // Create secondary track specifically routed to Device 2 if 2 distinct hardware outputs exist
+                // Track must match the rate the recorder actually opened at (may be the fallback rate)
+                val captureRate = record.sampleRate
+                streamSampleRate = captureRate
+                val minTrackBuf = AudioTrack.getMinBufferSize(captureRate, AudioFormat.CHANNEL_OUT_STEREO, audioFormat)
+                val trackBufSize = if (minTrackBuf > 0) (minTrackBuf * 2).coerceAtLeast(4096) else 8192
+
                 val secTrack = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
@@ -983,7 +1008,7 @@ class MainActivity : FlutterActivity() {
                     .setAudioFormat(
                         AudioFormat.Builder()
                             .setEncoding(audioFormat)
-                            .setSampleRate(sampleRate)
+                            .setSampleRate(captureRate)
                             .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                             .build()
                     )
@@ -991,31 +1016,19 @@ class MainActivity : FlutterActivity() {
                     .setTransferMode(AudioTrack.MODE_STREAM)
                     .build()
 
-                if (distinctOutputs.size >= 2) {
-                    try {
-                        val routed = secTrack.setPreferredDevice(distinctOutputs[1])
-                        Log.d("SoundShare", "secTrack setPreferredDevice(${distinctOutputs[1].productName}, ID=${distinctOutputs[1].id}) = $routed")
-                    } catch (_: Exception) {}
-                    try {
-                        secTrack.play()
-                        synchronized(audioTracks) {
-                            audioTracks.clear()
-                            audioTracks.add(secTrack)
-                        }
-                    } catch (_: Exception) {}
-                } else {
-                    // Check if two Bluetooth devices are connected at profile level
-                    val btConnectedCount = a2dpProfile?.connectedDevices?.size ?: 0
-                    if (btConnectedCount >= 2) {
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Dual Audio: Select both earphones in Media Output to enable dual sound!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            openMediaOutputSelector()
-                        }
+                val secondaryOutput = resolveSecondaryOutput(secTrack, physicalOutputs)
+                val hasSecondaryOutput = secondaryOutput != null &&
+                    secTrack.setPreferredDevice(secondaryOutput)
+
+                if (hasSecondaryOutput) {
+                    Log.d("SoundShare", "Mirroring to second output: ${secondaryOutput?.productName} (type=${secondaryOutput?.type})")
+                    synchronized(audioTracks) {
+                        audioTracks.clear()
+                        audioTracks.add(secTrack)
                     }
+                } else {
+                    try { secTrack.pause(); secTrack.flush() } catch (_: Exception) {}
+                    reportDualAudioUnavailable()
                 }
 
                 if (record.state == AudioRecord.STATE_INITIALIZED) {
@@ -1030,7 +1043,7 @@ class MainActivity : FlutterActivity() {
                     val readCount = record.read(pcmBuffer, 0, pcmBuffer.size)
                     if (readCount > 0) {
                         // 1. Write to local secondary output if available (e.g. wired/USB or multi-sink BT)
-                        if (distinctOutputs.size >= 2) {
+                        if (hasSecondaryOutput) {
                             try {
                                 secTrack.write(pcmBuffer, 0, readCount)
                             } catch (_: Exception) {}
@@ -1056,6 +1069,40 @@ class MainActivity : FlutterActivity() {
                     audioTracks.clear()
                 }
             }
+        }
+    }
+
+    /**
+     * Plays silence on [track] to learn where Android routes media by default, then returns a
+     * different physical output to mirror onto, or null when only one output can play.
+     */
+    private fun resolveSecondaryOutput(track: AudioTrack, outputs: List<AudioDeviceInfo>): AudioDeviceInfo? {
+        if (outputs.size < 2) return null
+        var primary: AudioDeviceInfo? = null
+        try {
+            track.play()
+            val silence = ShortArray(PROBE_SILENCE_FRAMES)
+            val deadline = SystemClock.elapsedRealtime() + PRIMARY_ROUTE_PROBE_MS
+            while (primary == null && SystemClock.elapsedRealtime() < deadline) {
+                track.write(silence, 0, silence.size)
+                primary = track.routedDevice
+            }
+        } catch (e: Exception) {
+            Log.w("SoundShare", "Primary route probe failed: ${e.message}")
+        }
+        return DualAudioRouter.pickSecondaryOutput(outputs, primary)
+    }
+
+    /** Tells Flutter that two headphones are connected but this phone can only play one. */
+    private fun reportDualAudioUnavailable() {
+        Handler(Looper.getMainLooper()).post {
+            val status = getDualAudioStatus()
+            val connectedBt = status["connectedBluetoothCount"] as? Int ?: 0
+            if (connectedBt < 2) return@post
+            if (status["mode"] == DualAudioRouter.MODE_SAMSUNG_DUAL_AUDIO) {
+                openMediaOutputSelector()
+            }
+            audioEventSink?.success(mapOf("event" to "dual_audio_unavailable", "status" to status))
         }
     }
 
@@ -1100,8 +1147,8 @@ class MainActivity : FlutterActivity() {
                     "Connection: close\r\n\r\n"
             out.write(header.toByteArray(Charsets.US_ASCII))
 
-            // Standard 44-byte WAV header for indefinite streaming (44.1kHz, 16-bit, Stereo)
-            val wavHeader = createWavHeader(sampleRate = 44100, channels = 2, bitsPerSample = 16)
+            // 44-byte WAV header for indefinite streaming at the real capture rate (16-bit stereo)
+            val wavHeader = createWavHeader(sampleRate = streamSampleRate, channels = 2, bitsPerSample = 16)
             out.write(wavHeader)
             out.flush()
 

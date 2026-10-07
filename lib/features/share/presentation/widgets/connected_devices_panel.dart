@@ -387,6 +387,31 @@ class ConnectedDevicesPanel extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (!device.isAudioActive) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () => DualHeadphoneSetupSheet.show(context),
+                  child: Tooltip(
+                    message: 'Connected, but Android is playing on the other headphone',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'STANDBY',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFB7791F),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(width: 6),
               // Disconnect button
               GestureDetector(

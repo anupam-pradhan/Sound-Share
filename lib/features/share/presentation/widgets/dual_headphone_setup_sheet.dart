@@ -5,6 +5,7 @@ import 'package:soundshare/core/utils/app_haptics.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
+import 'package:soundshare/features/audio_sharing/domain/dual_audio_status.dart';
 
 /// Interactive modal sheet guiding the user to connect two Bluetooth headphones
 /// with phone-specific instructions (Samsung, Pixel, Xiaomi, OnePlus, Motorola).
@@ -32,7 +33,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
 
     final manufacturer = capabilityAsync.valueOrNull?.deviceManufacturer ?? 'Android';
     final androidVersion = capabilityAsync.valueOrNull?.androidVersion ?? 30;
-    final isSamsung = capabilityAsync.valueOrNull?.hasSamsungDualAudio ??
+    final status =
+        ref.watch(dualAudioStatusProvider).valueOrNull ?? DualAudioStatus.unknown;
+    final isSamsung = status.mode == DualAudioMode.samsungDualAudio ||
         manufacturer.toLowerCase().contains('samsung');
 
     // Filter available audio devices that are not already connected
@@ -134,12 +137,12 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Current connection status banner
-                  _buildStatusBanner(context, connected, isDark),
+                  _buildStatusBanner(status, connected, isDark),
 
                   const SizedBox(height: 18),
 
                   // Phone-specific instructions card
-                  _buildBrandInstructions(context, manufacturer, isSamsung, isDark),
+                  _buildModeGuide(status, isDark),
 
                   const SizedBox(height: 20),
 
@@ -186,7 +189,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                     context: context,
                     icon: Icons.speaker_group_rounded,
                     title: 'Open Media Output Panel',
-                    subtitle: 'Check both headphones to stream audio simultaneously',
+                    subtitle: isSamsung
+                        ? 'Tick both headphones to turn on Dual Audio'
+                        : 'Choose which headphone plays',
                     color: AppColors.purple,
                     isDark: isDark,
                     onTap: () {
@@ -211,19 +216,18 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  // 3. Open Developer Options (for Pixel, Xiaomi, OnePlus, Moto)
-                  if (!isSamsung) ...[
+                  // 3. Android 15+/16 LE Audio sharing
+                  if (status.mode == DualAudioMode.leAudioSharing) ...[
                     _buildActionButton(
                       context: context,
-                      icon: Icons.developer_mode_rounded,
-                      title: 'Developer Options (Unlock Dual BT)',
-                      subtitle:
-                          'Set "Maximum connected Bluetooth audio devices" to 2 or 5',
-                      color: const Color(0xFFF59E0B),
+                      icon: Icons.podcasts_rounded,
+                      title: 'Open Audio Sharing',
+                      subtitle: 'Android plays to both LE Audio earbuds at once',
+                      color: AppColors.success,
                       isDark: isDark,
                       onTap: () {
                         AppHaptics.light();
-                        service.openDeveloperSettings();
+                        service.openAudioSharingSettings();
                       },
                     ),
                     const SizedBox(height: 10),
@@ -253,7 +257,7 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Guaranteed Fallback: Universal Peer Share',
+                                'Another option: Universal Peer Share',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
@@ -262,7 +266,7 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'If your phone hardware cannot maintain two Bluetooth audio links, select "Universal Peer Share" at the top of SoundShare. A friend connects their phone to your Wi-Fi/Hotspot and listens on their headphones in real time!',
+                                'Works on every phone: a friend joins your Wi-Fi/Hotspot and listens on their own phone and headphones.',
                                 style: TextStyle(
                                   fontSize: 11,
                                   height: 1.4,
@@ -289,46 +293,50 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
   }
 
   Widget _buildStatusBanner(
-      BuildContext context, List<BluetoothDeviceModel> connected, bool isDark) {
+      DualAudioStatus status, List<BluetoothDeviceModel> connected, bool isDark) {
     final count = connected.length;
-    final isDualReady = count >= 2;
+    final (Color color, IconData icon, String message) = switch (status.mode) {
+      DualAudioMode.appMirroring => (
+          AppColors.success,
+          Icons.check_circle_rounded,
+          'Two separate outputs found. Tap "Share Audio" and both will play.',
+        ),
+      DualAudioMode.singleActiveOnly => (
+          AppColors.error,
+          Icons.warning_rounded,
+          'Both headphones are connected, but Android only sends music to one '
+              'Bluetooth headphone at a time on this phone.',
+        ),
+      DualAudioMode.samsungDualAudio || DualAudioMode.leAudioSharing => (
+          AppColors.blue,
+          Icons.info_rounded,
+          count >= 2
+              ? 'Your phone can play to both. Follow the steps below.'
+              : 'Connect your 2nd headphone, then follow the steps below.',
+        ),
+      DualAudioMode.needSecondDevice => (
+          count == 1 ? AppColors.blue : AppColors.error,
+          count == 1 ? Icons.info_rounded : Icons.warning_rounded,
+          count == 1
+              ? '1 headphone connected ("${connected.first.name}"). Connect a 2nd one.'
+              : 'No headphones connected yet. Turn on Bluetooth and connect one.',
+        ),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isDualReady
-            ? AppColors.success.withValues(alpha: 0.12)
-            : (count == 1
-                ? AppColors.blue.withValues(alpha: 0.12)
-                : AppColors.error.withValues(alpha: 0.1)),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDualReady
-              ? AppColors.success.withValues(alpha: 0.3)
-              : (count == 1
-                  ? AppColors.blue.withValues(alpha: 0.3)
-                  : AppColors.error.withValues(alpha: 0.3)),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(
-            isDualReady
-                ? Icons.check_circle_rounded
-                : (count == 1 ? Icons.info_rounded : Icons.warning_rounded),
-            color: isDualReady
-                ? AppColors.success
-                : (count == 1 ? AppColors.blue : AppColors.error),
-            size: 20,
-          ),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              isDualReady
-                  ? 'Dual Headphones Connected ($count active)! You are ready to share synchronized audio.'
-                  : (count == 1
-                      ? '1 Headphone connected ("${connected.first.name}"). Connect your 2nd headphone below.'
-                      : 'No headphones connected yet. Turn on Bluetooth and connect your first headphone.'),
+              message,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -341,61 +349,42 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildBrandInstructions(
-      BuildContext context, String manufacturer, bool isSamsung, bool isDark) {
-    final lower = manufacturer.toLowerCase();
-
-    String brandTitle;
-    List<String> steps;
-
-    if (isSamsung) {
-      brandTitle = 'Samsung Dual Audio Instructions';
-      steps = [
-        'Connect both Bluetooth headphones in phone Settings > Bluetooth.',
-        'Tap "Open Media Output Panel" below (or swipe down notification shade and tap Media Output).',
-        'Check the circle next to BOTH connected headphones.',
-        'Tap "Share Audio" in SoundShare to stream together!',
-      ];
-    } else if (lower.contains('google') || lower.contains('pixel')) {
-      brandTitle = 'Google Pixel Dual Audio Instructions';
-      steps = [
-        'Tap "Developer Options" below.',
-        'Enable "Disable Bluetooth A2DP hardware offload" & set "Max connected devices" to 2 or 5.',
-        'Restart your phone for changes to take effect.',
-        'Connect both headphones in Settings > Connected devices.',
-        'Tap "Open Media Output Panel" below and select both headphones!',
-      ];
-    } else if (lower.contains('xiaomi') || lower.contains('redmi') || lower.contains('poco')) {
-      brandTitle = 'Xiaomi / HyperOS / MIUI Instructions';
-      steps = [
-        'Tap "Developer Options" below.',
-        'Enable "Disable Bluetooth A2DP hardware offload" (Turn ON).',
-        'Set "Maximum connected Bluetooth audio devices" to 2 or 5.',
-        'Restart your phone (Crucial!).',
-        'Now connect BOTH headphones in Bluetooth Settings — neither will disconnect!',
-        'Tap "Open Media Output Panel" below to check both headphones.',
-      ];
-    } else if (lower.contains('oneplus') || lower.contains('oppo') || lower.contains('realme')) {
-      brandTitle = 'OnePlus / OxygenOS / ColorOS Instructions';
-      steps = [
-        'Tap "Developer Options" below.',
-        'Turn ON "Disable Bluetooth A2DP hardware offload".',
-        'Set "Maximum connected Bluetooth audio devices" to 2 (or 5).',
-        'Restart your phone.',
-        'Connect both Bluetooth headphones in Bluetooth Settings.',
-        'Tap "Open Media Output Panel" below and select both audio outputs!',
-      ];
-    } else {
-      brandTitle = '$manufacturer Dual Bluetooth Instructions';
-      steps = [
-        'If your phone disconnects the 1st headphone when connecting the 2nd: tap "Developer Options" below.',
-        'Turn ON "Disable Bluetooth A2DP hardware offload".',
-        'Set "Maximum connected Bluetooth audio devices" to 2 (or 5).',
-        'Restart your phone.',
-        'Connect both headphones in Bluetooth Settings (both will stay connected!).',
-        'Tap "Open Media Output Panel" below to route to both headphones!',
-      ];
-    }
+  Widget _buildModeGuide(DualAudioStatus status, bool isDark) {
+    final (String title, List<String> steps) = switch (status.mode) {
+      DualAudioMode.appMirroring => (
+          'Ready to play on both',
+          [
+            'Tap "Share Audio" in SoundShare and allow audio capture.',
+            'Play music in any app — SoundShare mirrors it to the second output.',
+          ],
+        ),
+      DualAudioMode.samsungDualAudio => (
+          'Samsung Dual Audio',
+          [
+            'Connect both Bluetooth headphones in Settings > Bluetooth.',
+            'Tap "Open Media Output Panel" below.',
+            'Tick the circle next to BOTH headphones.',
+            'Play music — both headphones play together.',
+          ],
+        ),
+      DualAudioMode.leAudioSharing => (
+          'Android Audio Sharing (LE Audio)',
+          [
+            'Tap "Open Audio Sharing" below and turn it on.',
+            'Put the 2nd pair of LE Audio earbuds in pairing mode and add it.',
+            'Play music — both pairs play together.',
+          ],
+        ),
+      DualAudioMode.singleActiveOnly || DualAudioMode.needSecondDevice => (
+          'What works on this phone',
+          [
+            'Use 1 Bluetooth + 1 wired or USB-C headphone: SoundShare plays to both.',
+            'Or plug a dual-link Bluetooth transmitter into USB-C/3.5mm and pair both headphones to it.',
+            'Or use headphones/speakers with their own share/party mode (JBL, Sony, Marshall).',
+            'Two regular Bluetooth headphones on one phone need Samsung Dual Audio or Android 16 LE Audio sharing — no app can unlock this.',
+          ],
+        ),
+    };
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -416,7 +405,7 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  brandTitle,
+                  title,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -427,7 +416,7 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          for (int i = 0; i < steps.length; i++) ...[
+          for (int i = 0; i < steps.length; i++)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -466,7 +455,6 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                 ],
               ),
             ),
-          ],
         ],
       ),
     );

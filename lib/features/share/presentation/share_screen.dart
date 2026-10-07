@@ -38,6 +38,14 @@ class ShareScreen extends ConsumerWidget {
 
     final btEnabled = btAdapterState.valueOrNull == BluetoothAdapterState.on;
 
+    // Two headphones connected but Android only plays one: show what works on this phone
+    ref.listen(dualAudioUnavailableProvider, (_, next) {
+      if (next.hasValue && context.mounted) {
+        ref.invalidate(dualAudioStatusProvider);
+        DualHeadphoneSetupSheet.show(context);
+      }
+    });
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(

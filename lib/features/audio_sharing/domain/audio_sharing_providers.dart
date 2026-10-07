@@ -27,6 +27,16 @@ final audioSharingCapabilityProvider =
 });
 
 // ──────────────────────────────────────────────
+// Dual Headphone Status (re-evaluated whenever connected devices change)
+// ──────────────────────────────────────────────
+
+final dualAudioStatusProvider =
+    FutureProvider.autoDispose<DualAudioStatus>((ref) async {
+  ref.watch(connectedDevicesProvider);
+  return ref.watch(audioSharingServiceProvider).getDualAudioStatus();
+});
+
+// ──────────────────────────────────────────────
 // Active Sharing Mode Provider
 // ──────────────────────────────────────────────
 

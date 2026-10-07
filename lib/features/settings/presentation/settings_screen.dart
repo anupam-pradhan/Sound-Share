@@ -363,7 +363,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             icon: Icons.info_outline_rounded,
                             iconColor: AppColors.purple,
                             label: 'About SoundShare',
-                            subtitle: 'Crafted by Anupam Pradhan • No Ads',
+                            subtitle: 'By Cevrynt',
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
