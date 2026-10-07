@@ -4,6 +4,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/widgets/motion/motion.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -37,127 +39,205 @@ class _PermissionScreenState extends State<PermissionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Entrance(child: _OnboardingHero()),
+              const SizedBox(height: 28),
+              Entrance(
+                index: 1,
+                child: Text(
+                  'A few permissions to get started',
+                  style: AppTextStyles.displayMedium.copyWith(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Entrance(
+                index: 2,
+                child: Text(
+                  'Used only to share your audio. Your audio is never recorded or uploaded.',
+                  style: AppTextStyles.bodyMedium.copyWith(height: 1.45),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Entrance(
+                index: 3,
+                child: Surface(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    children: [
+                      _PermissionTile(
+                        icon: Icons.bluetooth_rounded,
+                        title: 'Nearby devices',
+                        subtitle: 'Find and connect your headphones',
+                      ),
+                      _TileDivider(),
+                      _PermissionTile(
+                        icon: Icons.graphic_eq_rounded,
+                        title: 'Audio capture',
+                        subtitle: 'Share the music playing on this phone',
+                      ),
+                      _TileDivider(),
+                      _PermissionTile(
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Notifications',
+                        subtitle: 'Keep sharing running with screen off',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const Spacer(),
-
-              // Icon illustration
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF26243A)
-                      : AppColors.purpleLight,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.bluetooth_audio_rounded,
-                  size: 44,
-                  color: AppColors.purple,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Title
-              Text(
-                'Allow Permissions',
-                style: AppTextStyles.headingLarge,
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 10),
-
-              Text(
-                'SoundShare needs Bluetooth, audio capture, and notification access to discover nearby devices and stream synchronized audio.',
-                style: AppTextStyles.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 36),
-
-              // Permission items
-              const _PermissionTile(
-                icon: Icons.bluetooth_searching_rounded,
-                title: 'Nearby Bluetooth Devices',
-                subtitle:
-                    'Discover and connect to additional headphones and speakers',
-              ),
-
-              const SizedBox(height: 16),
-
-              const _PermissionTile(
-                icon: Icons.mic_none_rounded,
-                title: 'Audio Capture',
-                subtitle:
-                    'Capture internal playback to synchronize with second device',
-              ),
-
-              const SizedBox(height: 16),
-
-              const _PermissionTile(
-                icon: Icons.notifications_active_outlined,
-                title: 'Foreground Notifications',
-                subtitle:
-                    'Keep audio stream alive in background and show session controls',
-              ),
-
-              const Spacer(flex: 2),
-
-              // Continue button
-              GestureDetector(
-                onTap: _isRequesting ? null : _requestPermissions,
-                child: Container(
-                  height: 56,
-                  decoration: AppGradients.primaryButton(radius: 18),
-                  child: Center(
-                    child: _isRequesting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            'Grant Permissions',
-                            style: AppTextStyles.buttonLarge.copyWith(
-                              color: Colors.white,
+              Entrance(
+                index: 4,
+                offset: 24,
+                child: PressableScale(
+                  onTap: _isRequesting ? null : _requestPermissions,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: DecoratedBox(
+                      decoration: AppGradients.primaryButton(radius: 18),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: _isRequesting ? null : _requestPermissions,
+                          child: Center(
+                            child: AnimatedSwitcher(
+                              duration: Motion.fast,
+                              child: _isRequesting
+                                  ? const SizedBox(
+                                      key: ValueKey('busy'),
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.4,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Continue',
+                                      key: const ValueKey('label'),
+                                      style: AppTextStyles.buttonLarge
+                                          .copyWith(color: Colors.white),
+                                    ),
                             ),
                           ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              // Skip / Not now
-              TextButton(
-                onPressed: () => context.go('/share'),
-                child: Text(
-                  'Set up later',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.textMuted,
+              const SizedBox(height: 6),
+              Center(
+                child: TextButton(
+                  onPressed: () => context.go('/share'),
+                  child: Text(
+                    'Not now',
+                    style: AppTextStyles.labelLarge.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 10),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+/// Brand illustration: phone sending sound to two headphones.
+class _OnboardingHero extends StatelessWidget {
+  const _OnboardingHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: AppGradients.primary,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purple.withValues(alpha: 0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          for (final size in [180.0, 130.0])
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18), width: 1.5),
+              ),
+            ),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _HeroBubble(icon: Icons.headphones_rounded, size: 52),
+              SizedBox(width: 18),
+              _HeroBubble(
+                  icon: Icons.smartphone_rounded, size: 76, solid: true),
+              SizedBox(width: 18),
+              _HeroBubble(icon: Icons.headphones_rounded, size: 52),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroBubble extends StatelessWidget {
+  const _HeroBubble(
+      {required this.icon, required this.size, this.solid = false});
+  final IconData icon;
+  final double size;
+  final bool solid;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: solid ? Colors.white : Colors.white.withValues(alpha: 0.2),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+      ),
+      child: Icon(icon,
+          size: size * 0.46, color: solid ? AppColors.purple : Colors.white),
+    );
+  }
+}
+
+class _TileDivider extends StatelessWidget {
+  const _TileDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(height: 1, indent: 72, color: Surface.borderColor(context));
   }
 }
 
@@ -174,46 +254,34 @@ class _PermissionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2B293E) : AppColors.cardBorder,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.25)
-                : AppColors.cardShadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: AppColors.purple.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.purple.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: AppColors.purple, size: 22),
+            child: Icon(icon, size: 21, color: AppColors.purple),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.labelLarge),
+                Text(
+                  title,
+                  style: AppTextStyles.labelLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle, style: AppTextStyles.bodySmall),
+                Text(subtitle,
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 12.5)),
               ],
             ),
           ),

@@ -36,7 +36,7 @@ SoundShare requests only the permissions necessary to deliver core audio-sharing
 ---
 
 ### 3. Third-Party Services & Analytics
-SoundShare contains **no third-party advertising SDKs, trackers, or data-collection analytics libraries**.
+SoundShare contains **no advertising SDKs**. We use **Google Firebase Analytics** to collect anonymous usage data — such as app opens, screens viewed, approximate country, device model and Android version — to understand how the app is used and to improve it. This data never includes your audio, contacts or the names of your Bluetooth devices. Google's handling of this data is described at https://firebase.google.com/support/privacy.
 
 ---
 

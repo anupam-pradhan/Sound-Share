@@ -1,213 +1,149 @@
 import 'package:flutter/material.dart';
-import 'package:soundshare/core/constants/app_assets.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
-import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/constants/app_assets.dart';
+import 'package:soundshare/core/widgets/app_sheet.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 
-/// Interactive About Modal Sheet describing SoundShare and the company behind it.
+/// About SoundShare and the company behind it.
 class AboutSoundShareSheet extends StatelessWidget {
   const AboutSoundShareSheet({super.key, required this.version});
 
   final String version;
 
   static void show(BuildContext context, {required String version}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AboutSoundShareSheet(version: version),
-    );
+    AppSheet.show<void>(context, (_) => AboutSoundShareSheet(version: version));
   }
+
+  static const _features = [
+    (
+      icon: Icons.headphones_rounded,
+      title: 'Listen together',
+      body: 'Share what you are playing with headphones and friends nearby.',
+    ),
+    (
+      icon: Icons.wifi_rounded,
+      title: 'Works over Wi-Fi',
+      body: 'Friends join from a link on your Wi-Fi or hotspot. No app needed.',
+    ),
+    (
+      icon: Icons.shield_outlined,
+      title: 'Private by design',
+      body: 'No accounts, no ads. Your audio is never recorded or uploaded.',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return AppSheet(
+      title: 'About',
+      footer: PrimaryButton(
+        label: 'Done',
+        onPressed: () => Navigator.of(context).pop(),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Logo with gentle gradient border
-            Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.purple.withValues(alpha: 0.18),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  AppAssets.logo,
-                  fit: BoxFit.contain,
+      child: Column(
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: Surface.borderColor(context)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.purple.withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
                 ),
-              ),
+              ],
             ),
-
-            const SizedBox(height: 14),
-
-            // Title & Version
-            Text('SoundShare', style: AppTextStyles.headingLarge),
-            const SizedBox(height: 2),
-            Text(
-              version.isNotEmpty ? 'Version $version' : 'Version 1.0.0',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+            child: Image.asset(AppAssets.logo, fit: BoxFit.contain),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'SoundShare',
+            style: AppTextStyles.displayMedium.copyWith(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: onSurface,
             ),
-
-            const SizedBox(height: 20),
-
-            // Creator & Mission Highlight Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.purple.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Version $version  •  Quick Media Solution',
+            style: AppTextStyles.bodySmall.copyWith(fontSize: 12.5),
+          ),
+          const SizedBox(height: 22),
+          Surface(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              children: [
+                for (int i = 0; i < _features.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 70,
+                      color: Surface.borderColor(context),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.purple.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Icon(
+                            _features[i].icon,
+                            size: 20,
+                            color: AppColors.purple,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.verified_rounded,
-                          size: 16,
-                          color: AppColors.purple,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _features[i].title,
+                                style: AppTextStyles.labelLarge.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _features[i].body,
+                                style: AppTextStyles.bodySmall
+                                    .copyWith(fontSize: 12.5, height: 1.4),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Developed by Quick Media Solution',
-                        style: AppTextStyles.labelLarge.copyWith(
-                          color: AppColors.purple,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'SoundShare is developed and maintained by Quick Media Solution. We build reliable audio tools that let you share sound with the people around you.',
-                    style: AppTextStyles.bodyMedium.copyWith(height: 1.45),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // Feature Highlights
-            const _FeatureRow(
-              icon: Icons.block_rounded,
-              title: 'Ad-Free Experience',
-              description: 'A clean listening experience with no ad interruptions.',
-            ),
-            const SizedBox(height: 12),
-            const _FeatureRow(
-              icon: Icons.graphic_eq_rounded,
-              title: 'Listen Together',
-              description: 'Share your favorite songs and podcasts across two devices synchronously.',
-            ),
-            const SizedBox(height: 12),
-            const _FeatureRow(
-              icon: Icons.shield_outlined,
-              title: 'Privacy Focused',
-              description: 'No telemetry or audio recording is ever stored or transmitted.',
-            ),
-
-            const SizedBox(height: 26),
-
-            // Close button
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: Container(
-                height: 50,
-                decoration: AppGradients.primaryButton(radius: 16),
-                child: const Center(
-                  child: Text(
-                    'Got it',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                      ],
                     ),
                   ),
-                ),
-              ),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '© ${DateTime.now().year} Quick Media Solution. All rights reserved.',
+            style: AppTextStyles.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _FeatureRow extends StatelessWidget {
-  const _FeatureRow({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppColors.purpleLight,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: AppColors.purple, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(description, style: AppTextStyles.bodySmall),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

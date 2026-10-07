@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:soundshare/core/utils/android_version.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soundshare/core/widgets/app_sheet.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 import 'package:soundshare/core/widgets/motion/motion.dart';
@@ -16,11 +18,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
 
   static Future<void> show(BuildContext context) {
     AppHaptics.medium();
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const DualHeadphoneSetupSheet(),
+    return AppSheet.show<void>(
+      context,
+      (_) => const DualHeadphoneSetupSheet(),
     );
   }
 
@@ -48,262 +48,142 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
       return !isAlreadyConnected && d.name.trim().isNotEmpty;
     }).toList();
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF161426) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 28,
-            offset: const Offset(0, -6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 44,
-              height: 4.5,
+    return AppSheet(
+        title: 'Play on two headphones',
+        subtitle:
+            '$manufacturer • Android ${androidReleaseName(androidVersion)}',
+        icon: Icons.headphones_rounded,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Current connection status banner
+            Entrance(child: _buildStatusBanner(status, connected, isDark)),
+
+            const SizedBox(height: 18),
+
+            // Phone-specific instructions card
+            Entrance(index: 1, child: _buildModeGuide(status, isDark)),
+
+            const SizedBox(height: 20),
+
+            // Quick connect paired devices list
+            if (availableToConnect.isNotEmpty) ...[
+              const SectionLabel('Paired headphones'),
+              ...availableToConnect.take(4).map((d) => _buildQuickConnectTile(
+                    context: context,
+                    ref: ref,
+                    device: d,
+                    isDark: isDark,
+                  )),
+              const SizedBox(height: 18),
+            ],
+
+            // Action Buttons Grid
+            const SectionLabel('Phone settings'),
+
+            // 1. Open Media Output Selector
+            _buildActionButton(
+              context: context,
+              icon: Icons.speaker_group_rounded,
+              title: 'Open Media Output Panel',
+              subtitle:
+                  isSamsung || status.mode == DualAudioMode.oplusAudioSharing
+                      ? 'Tick both headphones to play on both'
+                      : 'Choose which headphone plays, or tick both if offered',
+              color: AppColors.purple,
+              isDark: isDark,
+              onTap: () {
+                AppHaptics.light();
+                service.openMediaOutputSelector();
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // 2. Open Bluetooth Settings
+            _buildActionButton(
+              context: context,
+              icon: Icons.bluetooth_rounded,
+              title: 'Open Bluetooth Settings',
+              subtitle: 'Pair or connect your 2nd headphone manually',
+              color: AppColors.blue,
+              isDark: isDark,
+              onTap: () {
+                AppHaptics.light();
+                service.openBluetoothSettings();
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // 3. Android 15+/16 LE Audio sharing
+            if (status.mode == DualAudioMode.leAudioSharing) ...[
+              _buildActionButton(
+                context: context,
+                icon: Icons.podcasts_rounded,
+                title: 'Open Audio Sharing',
+                subtitle: 'Android plays to both LE Audio earbuds at once',
+                color: AppColors.success,
+                isDark: isDark,
+                onTap: () {
+                  AppHaptics.light();
+                  service.openAudioSharingSettings();
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // 4. Universal Peer Share Fallback Hint
+            Container(
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color:
-                    isDark ? const Color(0xFF332F4C) : const Color(0xFFE2E0EC),
-                borderRadius: BorderRadius.circular(10),
+                    isDark ? const Color(0xFF1B192A) : const Color(0xFFF5F3FF),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.purple.withValues(alpha: 0.25),
+                ),
               ),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.purple.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.headphones_rounded,
-                    color: AppColors.purple,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Connect 2 Headphones',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$manufacturer • Android ${androidReleaseName(androidVersion)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? const Color(0xFF9E9AA8)
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded),
-                  color: isDark ? Colors.white70 : AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-
-          const Divider(height: 1),
-
-          // Scrollable body
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Current connection status banner
-                  Entrance(
-                      child: _buildStatusBanner(status, connected, isDark)),
-
-                  const SizedBox(height: 18),
-
-                  // Phone-specific instructions card
-                  Entrance(index: 1, child: _buildModeGuide(status, isDark)),
-
-                  const SizedBox(height: 20),
-
-                  // Quick connect paired devices list
-                  if (availableToConnect.isNotEmpty) ...[
-                    Row(
-                      children: [
-                        const Icon(Icons.bluetooth_searching_rounded,
-                            size: 16, color: AppColors.purple),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Paired / Nearby Audio Devices',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color:
-                                isDark ? Colors.white : AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ...availableToConnect
-                        .take(4)
-                        .map((d) => _buildQuickConnectTile(
-                              context: context,
-                              ref: ref,
-                              device: d,
-                              isDark: isDark,
-                            )),
-                    const SizedBox(height: 18),
-                  ],
-
-                  // Action Buttons Grid
-                  Text(
-                    'Quick Phone Actions',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 1. Open Media Output Selector
-                  _buildActionButton(
-                    context: context,
-                    icon: Icons.speaker_group_rounded,
-                    title: 'Open Media Output Panel',
-                    subtitle: isSamsung ||
-                            status.mode == DualAudioMode.oplusAudioSharing
-                        ? 'Tick both headphones to play on both'
-                        : 'Choose which headphone plays, or tick both if offered',
+                  const Icon(
+                    Icons.wifi_tethering_rounded,
+                    size: 20,
                     color: AppColors.purple,
-                    isDark: isDark,
-                    onTap: () {
-                      AppHaptics.light();
-                      service.openMediaOutputSelector();
-                    },
                   ),
-                  const SizedBox(height: 10),
-
-                  // 2. Open Bluetooth Settings
-                  _buildActionButton(
-                    context: context,
-                    icon: Icons.bluetooth_rounded,
-                    title: 'Open Bluetooth Settings',
-                    subtitle: 'Pair or connect your 2nd headphone manually',
-                    color: AppColors.blue,
-                    isDark: isDark,
-                    onTap: () {
-                      AppHaptics.light();
-                      service.openBluetoothSettings();
-                    },
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 3. Android 15+/16 LE Audio sharing
-                  if (status.mode == DualAudioMode.leAudioSharing) ...[
-                    _buildActionButton(
-                      context: context,
-                      icon: Icons.podcasts_rounded,
-                      title: 'Open Audio Sharing',
-                      subtitle:
-                          'Android plays to both LE Audio earbuds at once',
-                      color: AppColors.success,
-                      isDark: isDark,
-                      onTap: () {
-                        AppHaptics.light();
-                        service.openAudioSharingSettings();
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // 4. Universal Peer Share Fallback Hint
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF1B192A)
-                          : const Color(0xFFF5F3FF),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.purple.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Row(
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.wifi_tethering_rounded,
-                          size: 20,
-                          color: AppColors.purple,
+                        const Text(
+                          'Another option: Universal Peer Share',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.purple,
+                          ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Another option: Universal Peer Share',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.purple,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Works on every phone: a friend joins your Wi-Fi/Hotspot and listens on their own phone and headphones.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  height: 1.4,
-                                  color: isDark
-                                      ? const Color(0xFF9E9AA8)
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 2),
+                        Text(
+                          'Works on every phone: a friend joins your Wi-Fi/Hotspot and listens on their own phone and headphones.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.4,
+                            color: isDark
+                                ? const Color(0xFF9E9AA8)
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 16),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
+
+            const SizedBox(height: 16),
+          ],
+        ));
   }
 
   Widget _buildStatusBanner(DualAudioStatus status,
@@ -316,8 +196,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
           'Two separate outputs found. Tap "Share Audio" and both will play.',
         ),
       DualAudioMode.singleActiveOnly => (
-          AppColors.error,
-          Icons.warning_rounded,
+          const Color(0xFFD69E2E),
+          Icons.info_outline_rounded,
           'Both headphones are connected, but Android only sends music to one '
               'Bluetooth headphone at a time on this phone.',
         ),
@@ -332,8 +212,8 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
               : 'Connect your 2nd headphone, then follow the steps below.',
         ),
       DualAudioMode.needSecondDevice => (
-          count == 1 ? AppColors.blue : AppColors.error,
-          count == 1 ? Icons.info_rounded : Icons.warning_rounded,
+          AppColors.blue,
+          Icons.info_outline_rounded,
           count == 1
               ? '1 headphone connected ("${connected.first.name}"). Connect a 2nd one.'
               : 'No headphones connected yet. Turn on Bluetooth and connect one.',

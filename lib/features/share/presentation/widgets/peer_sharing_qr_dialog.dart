@@ -4,345 +4,230 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
+import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
+import 'package:soundshare/core/widgets/app_sheet.dart';
 import 'package:soundshare/core/widgets/motion/motion.dart';
+import 'package:soundshare/core/widgets/surface.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_providers.dart';
 
+/// Invite friends on the same Wi-Fi/hotspot to listen from their own phone.
 class PeerSharingQrDialog extends ConsumerWidget {
   const PeerSharingQrDialog({super.key});
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const PeerSharingQrDialog(),
-    );
+    AppSheet.show<void>(context, (_) => const PeerSharingQrDialog());
   }
+
+  static const _steps = [
+    'Your friend joins your Wi-Fi or hotspot.',
+    'They scan the code or open the link in their browser.',
+    'They tap Listen and hear your audio on their own headphones.',
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final broadcastUrl = ref.watch(broadcastUrlProvider).valueOrNull;
-    final peersCount = ref.watch(connectedPeersCountProvider).valueOrNull ?? 0;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final url = ref.watch(broadcastUrlProvider).valueOrNull;
+    final peers = ref.watch(connectedPeersCountProvider).valueOrNull ?? 0;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final ready = url != null;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF141322) : AppColors.cardBackground,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2E2B45) : AppColors.cardBorder,
-          width: 1,
-        ),
+    return AppSheet(
+      title: 'Invite friends',
+      subtitle: ready
+          ? (peers > 0
+              ? '$peers ${peers == 1 ? 'friend' : 'friends'} listening'
+              : 'Same Wi-Fi or hotspot')
+          : 'Same Wi-Fi or hotspot',
+      icon: Icons.wifi_rounded,
+      footer: PrimaryButton(
+        label: 'Share link',
+        icon: Icons.ios_share_rounded,
+        onPressed: ready
+            ? () {
+                AppHaptics.medium();
+                Share.share(
+                  'Listen along with me on SoundShare: $url\n'
+                  '(Join my Wi-Fi or hotspot first.)',
+                );
+              }
+            : null,
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Drag Handle ────────────────────────────────
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF3E3B59) : AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Title & Status ─────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF12B76A).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF12B76A).withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF32D583),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        peersCount > 0
-                            ? '$peersCount FRIEND${peersCount > 1 ? 'S' : ''} LISTENING'
-                            : 'LIVE BROADCAST READY',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF32D583),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Share with a Friend',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Anyone on your Wi-Fi or hotspot can listen on their own phone and headphones. No app needed.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                color:
-                    isDark ? const Color(0xFFA09EAE) : AppColors.textSecondary,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Scannable QR code ──────────────────────────
-            Reveal(
-              visible: broadcastUrl != null,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.purple.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: broadcastUrl ?? '',
-                  size: 152,
-                  padding: EdgeInsets.zero,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                ),
-              ),
-            ),
-            if (broadcastUrl != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Friend scans this with their camera',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? const Color(0xFFA09EAE)
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            // ── Visual Link Box ────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color:
-                    isDark ? const Color(0xFF1D1B30) : const Color(0xFFF4F3FB),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF343050)
-                      : const Color(0xFFE2E0F5),
-                ),
-              ),
-              child: Column(
+      child: Column(
+        children: [
+          AnimatedSwitcher(
+            duration: Motion.medium,
+            child: ready
+                ? _QrCard(key: const ValueKey('qr'), url: url)
+                : const _NotReadyCard(key: ValueKey('waiting')),
+          ),
+          if (ready) ...[
+            const SizedBox(height: 14),
+            _LinkRow(url: url),
+          ],
+          const SizedBox(height: 22),
+          for (int i = 0; i < _steps.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.link_rounded,
-                        color: AppColors.purpleLight,
-                        size: 20,
+                  Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.purple.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.purple,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          broadcastUrl ?? 'Generating local network stream...',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontFamily: 'monospace',
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.purpleLight,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _steps[i],
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: onSurface.withValues(alpha: 0.8),
+                        height: 1.45,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.copy_rounded, size: 18),
-                        tooltip: 'Copy link',
-                        color: isDark ? Colors.white70 : AppColors.textPrimary,
-                        onPressed: broadcastUrl != null
-                            ? () {
-                                AppHaptics.light();
-                                Clipboard.setData(
-                                    ClipboardData(text: broadcastUrl));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'Stream link copied to clipboard!'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            : null,
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
 
-            const SizedBox(height: 20),
+class _QrCard extends StatelessWidget {
+  const _QrCard({super.key, required this.url});
+  final String url;
 
-            // ── Step-by-step Instructions ──────────────────
-            Entrance(
-              index: 2,
-              child: _buildInstructionStep(
-                number: '1',
-                title: 'Connect Devices',
-                desc:
-                    'Ensure your friend is connected to your Hotspot or same Wi-Fi.',
-                isDark: isDark,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Entrance(
-              index: 3,
-              child: _buildInstructionStep(
-                number: '2',
-                title: 'Open Stream Link',
-                desc: 'Friend opens the link in Chrome/Safari or SoundShare.',
-                isDark: isDark,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Entrance(
-              index: 4,
-              child: _buildInstructionStep(
-                number: '3',
-                title: 'Plug In & Enjoy',
-                desc:
-                    'Friend connects their headphones to their phone and hears live audio!',
-                isDark: isDark,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── Share Button ───────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: broadcastUrl != null
-                    ? () {
-                        AppHaptics.medium();
-                        Share.share(
-                          'Join my SoundShare live audio stream: $broadcastUrl\n(Connect to my Hotspot or Wi-Fi to listen in sync!)',
-                        );
-                      }
-                    : null,
-                icon: const Icon(Icons.share_rounded, size: 18),
-                label: const Text(
-                  'Share Link via WhatsApp / Apps',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.purple,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  elevation: 4,
-                ),
-              ),
-            ),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Surface.borderColor(context)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purple.withValues(alpha: 0.16),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: QrImageView(
+        data: url,
+        size: 180,
+        padding: EdgeInsets.zero,
+        eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.circle,
+          color: Color(0xFF1A1A2E),
+        ),
+        dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.circle,
+          color: Color(0xFF1A1A2E),
         ),
       ),
     );
   }
+}
 
-  Widget _buildInstructionStep({
-    required String number,
-    required String title,
-    required String desc,
-    required bool isDark,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.purple.withValues(alpha: 0.18),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            number,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: AppColors.purpleLight,
+class _NotReadyCard extends StatelessWidget {
+  const _NotReadyCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Surface(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.purple.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.qr_code_2_rounded,
+              size: 28,
+              color: AppColors.purple,
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                desc,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? const Color(0xFF9CA3AF)
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text(
+            'Start sharing to get your link',
+            style: AppTextStyles.labelLarge.copyWith(
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            'Choose Wi-Fi mode and tap Share Audio. Your QR code appears here.',
+            textAlign: TextAlign.center,
+            style:
+                AppTextStyles.bodySmall.copyWith(fontSize: 12.5, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkRow extends StatelessWidget {
+  const _LinkRow({required this.url});
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Surface(
+      padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+      child: Row(
+        children: [
+          const Icon(Icons.link_rounded, size: 18, color: AppColors.purple),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              url,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.labelMedium.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copy link',
+            icon: const Icon(Icons.copy_rounded, size: 18),
+            color: AppColors.purple,
+            onPressed: () {
+              AppHaptics.light();
+              Clipboard.setData(ClipboardData(text: url));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Link copied'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

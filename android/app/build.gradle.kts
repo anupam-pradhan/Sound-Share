@@ -4,6 +4,8 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
+    // Reads android/app/google-services.json for Firebase
+    id("com.google.gms.google-services")
 }
 
 val keystoreProperties = Properties()

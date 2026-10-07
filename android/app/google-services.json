@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "446461509965",
+    "project_id": "sound-share-3329f",
+    "storage_bucket": "sound-share-3329f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:446461509965:android:3df6c26c77d2090202b704",
+        "android_client_info": {
+          "package_name": "com.soundshare.soundshare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBqMiY49CAdFB0VKLj8D_X22LQSNyuz3c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

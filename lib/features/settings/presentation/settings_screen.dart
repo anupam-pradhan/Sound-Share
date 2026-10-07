@@ -258,7 +258,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             icon: Icons.privacy_tip_outlined,
                             iconColor: AppColors.blue,
                             label: 'Privacy Policy',
-                            subtitle: 'Zero tracking & local audio processing',
+                            subtitle: 'How SoundShare handles your data',
                             trailing: Icon(
                               Icons.chevron_right_rounded,
                               size: 18,
