@@ -190,9 +190,10 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
                     context: context,
                     icon: Icons.speaker_group_rounded,
                     title: 'Open Media Output Panel',
-                    subtitle: isSamsung
-                        ? 'Tick both headphones to turn on Dual Audio'
-                        : 'Choose which headphone plays',
+                    subtitle: isSamsung ||
+                            status.mode == DualAudioMode.oplusAudioSharing
+                        ? 'Tick both headphones to play on both'
+                        : 'Choose which headphone plays, or tick both if offered',
                     color: AppColors.purple,
                     isDark: isDark,
                     onTap: () {
@@ -308,7 +309,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
           'Both headphones are connected, but Android only sends music to one '
               'Bluetooth headphone at a time on this phone.',
         ),
-      DualAudioMode.samsungDualAudio || DualAudioMode.leAudioSharing => (
+      DualAudioMode.samsungDualAudio ||
+      DualAudioMode.oplusAudioSharing ||
+      DualAudioMode.leAudioSharing => (
           AppColors.blue,
           Icons.info_rounded,
           count >= 2
@@ -368,6 +371,15 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
             'Play music — both headphones play together.',
           ],
         ),
+      DualAudioMode.oplusAudioSharing => (
+          'OnePlus / OPPO / Realme Audio Sharing',
+          [
+            'Connect both Bluetooth headphones in Settings > Bluetooth.',
+            'Tap "Open Media Output Panel" below.',
+            'Tap the checkbox / "+" next to the 2nd headphone to add it to the group.',
+            'Play music — both headphones play together.',
+          ],
+        ),
       DualAudioMode.leAudioSharing => (
           'Android Audio Sharing (LE Audio)',
           [
@@ -379,8 +391,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
       DualAudioMode.singleActiveOnly || DualAudioMode.needSecondDevice => (
           'What works on this phone',
           [
-            'Use 1 Bluetooth + 1 wired or USB-C headphone: SoundShare plays to both.',
-            'Or plug a dual-link Bluetooth transmitter into USB-C/3.5mm and pair both headphones to it.',
+            'Plug a USB-C Bluetooth audio transmitter into the phone and pair the 2nd headphone to it — SoundShare then plays to both automatically.',
+            'Or use 1 Bluetooth + 1 wired / USB-C headphone: SoundShare plays to both.',
+            'Tap "Open Media Output Panel": if you see a checkbox or "+" next to the 2nd headphone, tick it — your phone supports dual audio.',
             'Or use headphones/speakers with their own share/party mode (JBL, Sony, Marshall).',
             'Two regular Bluetooth headphones on one phone need Samsung Dual Audio or Android 16 LE Audio sharing — no app can unlock this.',
           ],

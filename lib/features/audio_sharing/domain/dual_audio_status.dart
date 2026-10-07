@@ -6,6 +6,9 @@ enum DualAudioMode {
   /// Samsung One UI: user ticks both headphones in Media Output (system Dual Audio).
   samsungDualAudio,
 
+  /// OnePlus/OPPO/Realme (Android 14+): add both headphones to one group in Media Output.
+  oplusAudioSharing,
+
   /// Android 15+/16 LE Audio earbuds: system "Audio sharing" plays to both.
   leAudioSharing,
 
@@ -73,6 +76,7 @@ class DualAudioStatus {
     final mode = switch (map['mode'] as String?) {
       'app_mirroring' => DualAudioMode.appMirroring,
       'samsung_dual_audio' => DualAudioMode.samsungDualAudio,
+      'oplus_audio_sharing' => DualAudioMode.oplusAudioSharing,
       'le_audio_sharing' => DualAudioMode.leAudioSharing,
       'single_active_only' => DualAudioMode.singleActiveOnly,
       _ => DualAudioMode.needSecondDevice,

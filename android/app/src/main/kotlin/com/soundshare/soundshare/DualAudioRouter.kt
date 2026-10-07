@@ -22,6 +22,17 @@ object DualAudioRouter {
 
     const val MODE_APP_MIRRORING = "app_mirroring"
     const val MODE_SAMSUNG_DUAL_AUDIO = "samsung_dual_audio"
+    const val MODE_OPLUS_AUDIO_SHARING = "oplus_audio_sharing"
+
+    /** Android version from which OnePlus/OPPO/Realme ship "Audio sharing" (grouped Media Output). */
+    private const val OPLUS_AUDIO_SHARING_MIN_SDK = 34
+
+    /** OnePlus, OPPO and Realme share the ColorOS/OxygenOS Bluetooth stack with built-in dual audio. */
+    fun isOplusAudioSharingDevice(): Boolean {
+        val brand = "${Build.MANUFACTURER} ${Build.BRAND}".lowercase()
+        val isOplus = listOf("oneplus", "oppo", "realme").any { it in brand }
+        return isOplus && Build.VERSION.SDK_INT >= OPLUS_AUDIO_SHARING_MIN_SDK
+    }
     const val MODE_LE_AUDIO_SHARING = "le_audio_sharing"
     const val MODE_SINGLE_ACTIVE_ONLY = "single_active_only"
     const val MODE_NEED_SECOND_DEVICE = "need_second_device"
@@ -114,6 +125,7 @@ object DualAudioRouter {
         val mode = when {
             outputs.size >= 2 -> MODE_APP_MIRRORING
             isSamsung -> MODE_SAMSUNG_DUAL_AUDIO
+            isOplusAudioSharingDevice() -> MODE_OPLUS_AUDIO_SHARING
             hasLeAudio && Build.VERSION.SDK_INT >= 35 -> MODE_LE_AUDIO_SHARING
             connectedBtCount >= 2 -> MODE_SINGLE_ACTIVE_ONLY
             else -> MODE_NEED_SECOND_DEVICE

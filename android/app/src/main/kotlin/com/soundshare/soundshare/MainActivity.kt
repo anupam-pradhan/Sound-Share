@@ -276,7 +276,22 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-            // 2. Android 10+ (API 29+) Media Output Panel
+            // 2. OnePlus/OPPO/Realme: the SystemUI output dialog is the one with "Add device to group"
+            //    (pattern from LazyCar, MIT — github.com/nathanrodrigues2111/lazycar)
+            if (DualAudioRouter.isOplusAudioSharingDevice()) {
+                try {
+                    sendBroadcast(
+                        Intent("com.android.systemui.action.LAUNCH_MEDIA_OUTPUT_DIALOG")
+                            .setPackage("com.android.systemui")
+                            .putExtra("package_name", packageName)
+                    )
+                    return true
+                } catch (e: Exception) {
+                    Log.w("SoundShare", "SystemUI media output dialog unavailable: ${e.message}")
+                }
+            }
+
+            // 3. Android 10+ (API 29+) Media Output Panel
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
                     val intent = Intent("android.settings.panel.action.MEDIA_OUTPUT").apply {
@@ -289,7 +304,7 @@ class MainActivity : FlutterActivity() {
                 } catch (_: Exception) {}
             }
 
-            // 3. Fallback: Bluetooth settings
+            // 4. Fallback: Bluetooth settings
             openBluetoothSettings()
         } catch (_: Exception) {
             openBluetoothSettings()
@@ -1099,7 +1114,8 @@ class MainActivity : FlutterActivity() {
             val status = getDualAudioStatus()
             val connectedBt = status["connectedBluetoothCount"] as? Int ?: 0
             if (connectedBt < 2) return@post
-            if (status["mode"] == DualAudioRouter.MODE_SAMSUNG_DUAL_AUDIO) {
+            val mode = status["mode"]
+            if (mode == DualAudioRouter.MODE_SAMSUNG_DUAL_AUDIO || mode == DualAudioRouter.MODE_OPLUS_AUDIO_SHARING) {
                 openMediaOutputSelector()
             }
             audioEventSink?.success(mapOf("event" to "dual_audio_unavailable", "status" to status))
