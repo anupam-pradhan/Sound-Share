@@ -15,6 +15,9 @@ import android.media.AudioFormat
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -80,6 +83,10 @@ class MainActivity : FlutterActivity() {
     private val liveStreamClients = Collections.synchronizedList(mutableListOf<Socket>())
     private var isStreamingServerRunning = false
     @Volatile private var streamSampleRate = 44100
+
+    // SystemUI's media output dialog (the one with "Add device to group" on
+    // OnePlus/OPPO/Realme) only opens for an app with an active media session.
+    private var mediaSession: MediaSession? = null
 
     private companion object {
         const val PRIMARY_ROUTE_PROBE_MS = 300L
@@ -280,11 +287,18 @@ class MainActivity : FlutterActivity() {
             //    (pattern from LazyCar, MIT — github.com/nathanrodrigues2111/lazycar)
             if (DualAudioRouter.isOplusAudioSharingDevice()) {
                 try {
+                    // The dialog is anchored to an active media session; without one the broadcast is ignored.
+                    ensureMediaSession()
                     sendBroadcast(
                         Intent("com.android.systemui.action.LAUNCH_MEDIA_OUTPUT_DIALOG")
                             .setPackage("com.android.systemui")
                             .putExtra("package_name", packageName)
                     )
+                    Toast.makeText(
+                        this,
+                        "Tap \"Add device to group\" next to your 2nd headphone",
+                        Toast.LENGTH_LONG
+                    ).show()
                     return true
                 } catch (e: Exception) {
                     Log.w("SoundShare", "SystemUI media output dialog unavailable: ${e.message}")
@@ -336,6 +350,37 @@ class MainActivity : FlutterActivity() {
             } catch (_: Exception) {}
         }
         return openBluetoothSettings()
+    }
+
+    /** Registers a lightweight "playing" media session so SystemUI shows our output dialog. */
+    private fun ensureMediaSession() {
+        if (mediaSession != null) return
+        try {
+            val session = MediaSession(this, "SoundShareOutput")
+            session.setMetadata(
+                MediaMetadata.Builder()
+                    .putString(MediaMetadata.METADATA_KEY_TITLE, "SoundShare live audio")
+                    .build()
+            )
+            session.setPlaybackState(
+                PlaybackState.Builder()
+                    .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE)
+                    .setState(PlaybackState.STATE_PLAYING, 0L, 1.0f)
+                    .build()
+            )
+            session.isActive = true
+            mediaSession = session
+        } catch (e: Exception) {
+            Log.w("SoundShare", "MediaSession create failed: ${e.message}")
+        }
+    }
+
+    private fun releaseMediaSession() {
+        try {
+            mediaSession?.isActive = false
+            mediaSession?.release()
+        } catch (_: Exception) {}
+        mediaSession = null
     }
 
     private fun openDeveloperSettings(): Boolean {
@@ -868,6 +913,10 @@ class MainActivity : FlutterActivity() {
         if (isPlayingAudio) return
         isPlayingAudio = true
 
+        // Keep a media session active for the whole share so the system output
+        // dialog (Samsung Media Output / OnePlus "Add device to group") can anchor to us.
+        ensureMediaSession()
+
         // Play brief dual confirmation chime so user gets immediate acoustic confirmation
         playDualAudioChime()
 
@@ -1268,6 +1317,7 @@ class MainActivity : FlutterActivity() {
 
     private fun stopNativeAudioPlayback() {
         isPlayingAudio = false
+        releaseMediaSession()
         stopAudioCapture()
         AudioShareForegroundService.stopService(this)
         playbackThread?.interrupt()

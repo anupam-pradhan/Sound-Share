@@ -269,8 +269,9 @@ class DualHeadphoneSetupSheet extends ConsumerWidget {
           [
             'Connect both Bluetooth headphones in Settings > Bluetooth.',
             'Tap "Open Media Output Panel" below.',
-            'Tap the checkbox / "+" next to the 2nd headphone to add it to the group.',
+            'In the dialog that opens, tap "Add device to group" next to your 2nd headphone.',
             'Play music — both headphones play together.',
+            'Both playing? Done — the app may still say "Standby" because Android hides grouped devices from apps.',
           ],
         ),
       DualAudioMode.leAudioSharing => (
