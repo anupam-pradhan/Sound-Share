@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/analytics/analytics_service.dart';
 import 'package:soundshare/core/widgets/bluetooth_device_icon.dart';
 import 'package:soundshare/core/widgets/animated_widgets.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_device_model.dart';
@@ -104,6 +105,7 @@ class _BluetoothDeviceCardState extends ConsumerState<BluetoothDeviceCard>
           widget.device.id, DeviceConnectionState.connected);
       connectedNotifier.addDevice(widget.device);
 
+      AnalyticsService.instance.deviceConnected(type: widget.device.type.name);
       setState(() => _showSuccess = true);
       await Future.delayed(const Duration(milliseconds: 1200));
       if (mounted) setState(() => _showSuccess = false);

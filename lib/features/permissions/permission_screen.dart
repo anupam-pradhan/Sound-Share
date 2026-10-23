@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/analytics/analytics_service.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -19,13 +20,16 @@ class _PermissionScreenState extends State<PermissionScreen> {
     setState(() => _isRequesting = true);
 
     try {
-      await [
+      final results = await [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
         Permission.bluetoothAdvertise,
         Permission.notification,
         Permission.locationWhenInUse,
       ].request();
+      AnalyticsService.instance.permissionsResult(
+        granted: results[Permission.bluetoothConnect]?.isGranted ?? false,
+      );
     } finally {
       if (mounted) {
         setState(() => _isRequesting = false);

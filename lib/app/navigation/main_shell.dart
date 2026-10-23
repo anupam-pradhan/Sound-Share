@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/ads/ad_service.dart';
+import 'package:soundshare/core/analytics/analytics_service.dart';
+import 'package:soundshare/core/ads/widgets/anchored_banner_ad.dart';
 import 'package:soundshare/core/navigation/app_back_handler.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 
@@ -10,12 +13,21 @@ class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
+  static const _settingsTab = 1;
+  static const _tabNames = ['share', 'settings'];
+
   void _onNavTap(int index) {
     AppHaptics.selection();
+    final isTabChange = index != navigationShell.currentIndex;
+    if (isTabChange) AnalyticsService.instance.screen(_tabNames[index]);
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,
     );
+    // Moving to Settings is a natural break; the service enforces the cooldown
+    if (isTabChange && index == _settingsTab) {
+      AdService.instance.showInterstitial();
+    }
   }
 
   @override
@@ -24,9 +36,15 @@ class MainShell extends StatelessWidget {
       navigationShell: navigationShell,
       child: Scaffold(
         body: navigationShell,
-        bottomNavigationBar: _SoundShareBottomNav(
-          currentIndex: navigationShell.currentIndex,
-          onTap: _onNavTap,
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AnchoredBannerAd(),
+            _SoundShareBottomNav(
+              currentIndex: navigationShell.currentIndex,
+              onTap: _onNavTap,
+            ),
+          ],
         ),
       ),
     );

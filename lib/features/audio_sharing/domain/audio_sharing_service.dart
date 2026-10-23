@@ -121,6 +121,15 @@ class AudioSharingCapability {
 }
 
 /// Abstract interface for audio sharing service.
+/// A start failure the user can fix; [message] is shown to them as-is.
+class AudioSharingException implements Exception {
+  const AudioSharingException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 abstract class AudioSharingService {
   /// Whether the current device supports audio sharing and which modes are optimal.
   Future<AudioSharingCapability> canShareAudio();

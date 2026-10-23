@@ -3,6 +3,8 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
+    // Reads android/app/google-services.json for Firebase
+    id("com.google.gms.google-services")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -28,6 +30,9 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // AdMob App ID (AdMob → Apps → SoundShare → App settings)
+        manifestPlaceholders["admobAppId"] = "ca-app-pub-8553074995187782~5013826909"
     }
 
     signingConfigs {

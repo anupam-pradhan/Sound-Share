@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soundshare/core/analytics/analytics_service.dart';
+import 'package:soundshare/core/engagement/review_prompt.dart';
 import 'package:soundshare/features/audio_sharing/domain/audio_sharing_service.dart';
 import 'package:soundshare/features/audio_sharing/data/android_audio_sharing_service.dart';
 import 'package:soundshare/features/bluetooth/domain/bluetooth_providers.dart';
@@ -60,6 +62,7 @@ class ActiveSharingModeNotifier extends StateNotifier<AudioSharingMode> {
   }
 
   void setMode(AudioSharingMode mode) {
+    if (mode != state) AnalyticsService.instance.modeSelected(mode.name);
     state = mode;
     _ref.read(audioSharingServiceProvider).setActiveMode(mode);
   }
@@ -84,10 +87,15 @@ final connectedPeersCountProvider = StreamProvider<int>((ref) {
 // Broadcast URL Provider
 // ──────────────────────────────────────────────
 
-final broadcastUrlProvider = StreamProvider<String?>((ref) {
+final broadcastUrlProvider = StreamProvider<String?>((ref) async* {
   final service = ref.watch(audioSharingServiceProvider);
-  return service.broadcastUrlStream;
+  // Current value first, so a sheet opened mid-share shows the link at once
+  yield service.broadcastUrl;
+  yield* service.broadcastUrlStream;
 });
+
+/// Last start-up problem to show the user (null once shown).
+final sharingErrorProvider = StateProvider<String?>((ref) => null);
 
 // ──────────────────────────────────────────────
 // Audio Sharing State
@@ -108,6 +116,20 @@ class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
 
   final Ref _ref;
   StreamSubscription<bool>? _sharingSub;
+  DateTime? _sharingSince;
+
+  /// Logs the finished session and lets a good session trigger a review ask.
+  void _endSession() {
+    final since = _sharingSince;
+    _sharingSince = null;
+    if (since == null) return;
+    final duration = DateTime.now().difference(since);
+    AnalyticsService.instance.shareStopped(
+      mode: _ref.read(activeSharingModeProvider).name,
+      duration: duration,
+    );
+    ReviewPrompt.onShareFinished(duration);
+  }
 
   void _onConnectedDevicesChanged(List<model.BluetoothDeviceModel> devices) {
     if (state == AudioSharingState.sharing ||
@@ -151,10 +173,20 @@ class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
       _sharingSub?.cancel();
       _sharingSub = service.isSharing.listen((sharing) {
         if (!sharing && state == AudioSharingState.sharing) {
+          _endSession();
           state = AudioSharingState.ready;
         }
       });
       state = AudioSharingState.sharing;
+      _sharingSince = DateTime.now();
+      AnalyticsService.instance.shareStarted(
+        mode: _ref.read(activeSharingModeProvider).name,
+        headphones: _ref.read(connectedDevicesProvider).length,
+      );
+    } on AudioSharingException catch (e) {
+      // Fixable by the user (cancelled dialog, no Wi-Fi): back to ready + message
+      _ref.read(sharingErrorProvider.notifier).state = e.message;
+      state = AudioSharingState.ready;
     } catch (_) {
       state = AudioSharingState.error;
     }
@@ -172,6 +204,7 @@ class AudioSharingNotifier extends StateNotifier<AudioSharingState> {
     } finally {
       _sharingSub?.cancel();
       _sharingSub = null;
+      _endSession();
       state = AudioSharingState.ready;
     }
   }

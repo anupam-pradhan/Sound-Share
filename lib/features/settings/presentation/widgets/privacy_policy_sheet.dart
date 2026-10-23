@@ -86,9 +86,9 @@ class PrivacyPolicySheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _policySection(
-                    title: '1. No Data Collection',
+                    title: '1. Your Data',
                     content:
-                        'SoundShare does not collect, track, or share any personal identifying information (PII). We do not require accounts, logins, or cloud synchronization.',
+                        'SoundShare does not require accounts, logins, or cloud synchronization, and your audio never leaves your device. The advertising partner described in section 5 collects limited device data to show ads.',
                   ),
                   _policySection(
                     title: '2. Bluetooth Permissions',
@@ -106,9 +106,9 @@ class PrivacyPolicySheet extends StatelessWidget {
                         'Foreground media playback services are used to keep your audio stream and BeatSync haptics uninterrupted when switching applications or locking your screen.',
                   ),
                   _policySection(
-                    title: '5. Zero Advertisements',
+                    title: '5. Advertising',
                     content:
-                        'SoundShare contains zero third-party advertisement SDKs, analytical trackers, or data monetization libraries.',
+                        'SoundShare is free and shows ads served by Google AdMob. To show and measure ads, Google may collect your device\'s advertising ID, IP address, and app interaction data, as described at policies.google.com/technologies/partner-sites. In the EU and UK you are asked for consent first and can change it any time in Settings → Ad privacy options. You can reset or delete your advertising ID in Android Settings → Privacy → Ads.',
                   ),
                   const SizedBox(height: 20),
                 ],

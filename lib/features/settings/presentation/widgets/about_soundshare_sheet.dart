@@ -127,9 +127,9 @@ class AboutSoundShareSheet extends StatelessWidget {
 
             // Feature Highlights
             const _FeatureRow(
-              icon: Icons.block_rounded,
-              title: 'No Ads & No Paywalls',
-              description: 'Pure listening experience with zero interruptions or subscriptions.',
+              icon: Icons.volunteer_activism_rounded,
+              title: 'Free, No Paywalls',
+              description: 'Every feature is free — supported by ads, never by subscriptions.',
             ),
             const SizedBox(height: 12),
             const _FeatureRow(

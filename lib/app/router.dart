@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:soundshare/core/analytics/analytics_service.dart';
 import 'package:soundshare/features/splash/splash_screen.dart';
 import 'package:soundshare/features/permissions/permission_screen.dart';
 import 'package:soundshare/features/share/presentation/share_screen.dart';
@@ -8,8 +9,11 @@ import 'package:soundshare/features/settings/presentation/settings_screen.dart';
 // import 'package:soundshare/features/spatial_audio/presentation/spatial_audio_settings_screen.dart';
 import 'package:soundshare/app/navigation/main_shell.dart';
 
+// Top-level finals are initialised on first use, which is after main() has
+// attached analytics, so the observer is available here.
 final appRouter = GoRouter(
   initialLocation: '/',
+  observers: AnalyticsService.instance.observers,
   routes: [
     // Splash
     GoRoute(

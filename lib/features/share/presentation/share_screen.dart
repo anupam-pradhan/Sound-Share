@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soundshare/core/ads/ad_service.dart';
+import 'package:soundshare/core/ads/widgets/inline_banner_ad.dart';
 import 'package:soundshare/core/constants/app_assets.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 import 'package:soundshare/core/widgets/skeleton_loader.dart';
@@ -37,6 +39,23 @@ class ShareScreen extends ConsumerWidget {
 
     final btEnabled = btAdapterState.valueOrNull == BluetoothAdapterState.on;
 
+    // A start problem the user can fix (no Wi-Fi, dialog cancelled…)
+    ref.listen(sharingErrorProvider, (_, message) {
+      if (message == null || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
+      );
+      ref.read(sharingErrorProvider.notifier).state = null;
+    });
+
+    // No full-screen ads while audio is being shared
+    ref.listen(audioSharingStateProvider, (_, next) {
+      AdService.instance.setSharingActive(
+        next == AudioSharingState.sharing ||
+            next == AudioSharingState.starting,
+      );
+    });
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -71,7 +90,8 @@ class ShareScreen extends ConsumerWidget {
                     ],
 
                     // Bluetooth off / no permission banner
-                    if (!btEnabled && activeMode != AudioSharingMode.universalPeerShare)
+                    if (!btEnabled &&
+                        activeMode != AudioSharingMode.universalPeerShare)
                       _BluetoothOffBanner(
                         onEnable: () async {
                           try {
@@ -80,7 +100,8 @@ class ShareScreen extends ConsumerWidget {
                         },
                       ),
 
-                    if (btEnabled || activeMode == AudioSharingMode.universalPeerShare) ...[
+                    if (btEnabled ||
+                        activeMode == AudioSharingMode.universalPeerShare) ...[
                       // Audio Source card (This Phone)
                       ConnectedAudioCard(
                         deviceType: BluetoothDeviceType.phone,
@@ -89,7 +110,8 @@ class ShareScreen extends ConsumerWidget {
                             : (activeMode == AudioSharingMode.universalPeerShare
                                 ? 'This Phone (Wi-Fi Broadcast)'
                                 : 'This Phone (Media Audio)'),
-                        isConnected: btEnabled || activeMode == AudioSharingMode.universalPeerShare,
+                        isConnected: btEnabled ||
+                            activeMode == AudioSharingMode.universalPeerShare,
                       ),
 
                       const SizedBox(height: 14),
@@ -127,6 +149,8 @@ class ShareScreen extends ConsumerWidget {
                       const SizedBox(height: 24),
                     ],
 
+                    const InlineBannerAd(padding: EdgeInsets.only(bottom: 24)),
+
                     if (!btEnabled) ...[
                       // [COMMENTED OUT - BeatSyncCard per SoundShare-only configuration]
                       // const BeatSyncCard(),
@@ -144,10 +168,18 @@ class ShareScreen extends ConsumerWidget {
                 state: btEnabled ? sharingState : AudioSharingState.unavailable,
                 sharingDuration: sharingDuration,
                 onShare: () {
+                  // Android's capture-consent dialog backgrounds the app
+                  AdService.instance.suppressNextAppOpen();
                   ref.read(audioSharingStateProvider.notifier).startSharing();
                 },
-                onStop: () {
-                  ref.read(audioSharingStateProvider.notifier).stopSharing();
+                onStop: () async {
+                  await ref
+                      .read(audioSharingStateProvider.notifier)
+                      .stopSharing();
+                  // Session over: a natural break for an interstitial
+                  AdService.instance
+                    ..setSharingActive(false)
+                    ..showInterstitial();
                 },
               ),
             ),
@@ -330,7 +362,9 @@ class _EmptyDevicesCard extends ConsumerWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.purple,
               side: BorderSide(
-                color: isDark ? const Color(0xFF3B3754) : AppColors.purple.withValues(alpha: 0.3),
+                color: isDark
+                    ? const Color(0xFF3B3754)
+                    : AppColors.purple.withValues(alpha: 0.3),
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -342,7 +376,6 @@ class _EmptyDevicesCard extends ConsumerWidget {
     );
   }
 }
-
 
 // ──────────────────────────────────────────────
 // Bluetooth off banner
@@ -624,12 +657,12 @@ class _PeerShareInviteBanner extends StatelessWidget {
         gradient: LinearGradient(
           colors: isSharing
               ? [
-                  const Color(0xFF10B981).withOpacity(0.18),
-                  const Color(0xFF059669).withOpacity(0.08),
+                  const Color(0xFF10B981).withValues(alpha: 0.18),
+                  const Color(0xFF059669).withValues(alpha: 0.08),
                 ]
               : [
-                  AppColors.purple.withOpacity(0.15),
-                  AppColors.blue.withOpacity(0.08),
+                  AppColors.purple.withValues(alpha: 0.15),
+                  AppColors.blue.withValues(alpha: 0.08),
                 ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -637,8 +670,8 @@ class _PeerShareInviteBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isSharing
-              ? const Color(0xFF10B981).withOpacity(0.4)
-              : AppColors.purpleLight.withOpacity(0.3),
+              ? const Color(0xFF10B981).withValues(alpha: 0.4)
+              : AppColors.purpleLight.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -647,13 +680,14 @@ class _PeerShareInviteBanner extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: isSharing
-                  ? const Color(0xFF10B981).withOpacity(0.2)
-                  : AppColors.purple.withOpacity(0.2),
+                  ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                  : AppColors.purple.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(
               isSharing ? Icons.podcasts_rounded : Icons.qr_code_2_rounded,
-              color: isSharing ? const Color(0xFF32D583) : AppColors.purpleLight,
+              color:
+                  isSharing ? const Color(0xFF32D583) : AppColors.purpleLight,
               size: 22,
             ),
           ),
@@ -681,7 +715,9 @@ class _PeerShareInviteBanner extends StatelessWidget {
                       : 'Zero data • Works on 100% of phones',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? const Color(0xFFA09EAE) : AppColors.textSecondary,
+                    color: isDark
+                        ? const Color(0xFFA09EAE)
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -694,10 +730,12 @@ class _PeerShareInviteBanner extends StatelessWidget {
               onOpenQr();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: isSharing ? const Color(0xFF10B981) : AppColors.purple,
+              backgroundColor:
+                  isSharing ? const Color(0xFF10B981) : AppColors.purple,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
             child: Text(
@@ -710,5 +748,3 @@ class _PeerShareInviteBanner extends StatelessWidget {
     );
   }
 }
-
-

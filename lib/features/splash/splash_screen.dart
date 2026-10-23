@@ -7,6 +7,7 @@ import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
 import 'package:soundshare/core/widgets/audio_waveform.dart';
+import 'package:soundshare/core/ads/ad_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -27,6 +28,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
+
+    // Consent + SDK start-up run alongside the splash animation
+    AdService.instance.initialize();
 
     _logoController = AnimationController(
       vsync: this,
@@ -79,7 +83,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     if (!mounted) return;
 
-    if ((btScanStatus.isGranted && btConnectStatus.isGranted) || btLegacyStatus.isGranted) {
+    final hasPermissions =
+        (btScanStatus.isGranted && btConnectStatus.isGranted) ||
+            btLegacyStatus.isGranted;
+
+    // Returning users see an app open ad on launch; first-time users go
+    // straight to onboarding (Google: no app open ad on the very first launch).
+    if (hasPermissions) {
+      await AdService.instance.showAppOpenOnLaunch();
+      if (!mounted) return;
       context.go('/share');
     } else {
       context.go('/permissions');

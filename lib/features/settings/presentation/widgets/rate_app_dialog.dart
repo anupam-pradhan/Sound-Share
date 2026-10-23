@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:soundshare/app/theme/app_colors.dart';
 import 'package:soundshare/app/theme/app_gradients.dart';
 import 'package:soundshare/app/theme/app_text_styles.dart';
+import 'package:soundshare/core/analytics/analytics_service.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 
 /// Rate SoundShare using the native Google Play in-app review API.
@@ -13,6 +14,7 @@ class RateAppDialog extends StatefulWidget {
 
   /// Attempts native in-app review first. Shows custom dialog as fallback.
   static Future<void> show(BuildContext context) async {
+    AnalyticsService.instance.rateDialogOpened();
     final inAppReview = InAppReview.instance;
     try {
       if (await inAppReview.isAvailable()) {

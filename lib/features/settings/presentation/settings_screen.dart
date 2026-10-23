@@ -9,6 +9,8 @@ import '../../../app/theme/app_text_styles.dart';
 import '../../../features/bluetooth/domain/bluetooth_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_providers.dart';
 import '../../../features/audio_sharing/domain/audio_sharing_service.dart';
+import 'package:soundshare/core/ads/ad_service.dart';
+import 'package:soundshare/core/ads/widgets/inline_banner_ad.dart';
 import 'package:soundshare/core/utils/app_haptics.dart';
 // [COMMENTED OUT - BeatSync & Spatial Audio disabled per SoundShare-only configuration]
 // import '../../../features/beatsync/domain/beatsync_providers.dart';
@@ -65,11 +67,20 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _version = '';
+  bool _showAdPrivacy = false;
 
   @override
   void initState() {
     super.initState();
     _loadVersion();
+    _loadAdPrivacy();
+  }
+
+  /// EU/UK users must be able to change their ad consent from inside the app.
+  Future<void> _loadAdPrivacy() async {
+    await AdService.instance.ready;
+    final required = await AdService.instance.isPrivacyOptionsRequired();
+    if (mounted) setState(() => _showAdPrivacy = required);
   }
 
   Future<void> _loadVersion() async {
@@ -302,9 +313,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     const SizedBox(height: 12),
 
+                    const InlineBannerAd(padding: EdgeInsets.only(bottom: 12)),
+
                     // Legal & About
                     _SettingsCard(
                       children: [
+                        if (_showAdPrivacy) ...[
+                          InkWell(
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16)),
+                            onTap: () {
+                              AppHaptics.light();
+                              AdService.instance.showPrivacyOptions();
+                            },
+                            child: const _SettingsRow(
+                              icon: Icons.ads_click_rounded,
+                              iconColor: AppColors.purple,
+                              label: 'Ad privacy options',
+                              subtitle: 'Change your ad consent choices',
+                              trailing: Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          _Divider(),
+                        ],
                         InkWell(
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                           onTap: () {
@@ -344,7 +379,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             icon: Icons.privacy_tip_outlined,
                             iconColor: AppColors.blue,
                             label: 'Privacy Policy',
-                            subtitle: 'Zero tracking & local audio processing',
+                            subtitle: 'Audio stays on device • How ads use data',
                             trailing: Icon(
                               Icons.chevron_right_rounded,
                               size: 18,
@@ -363,7 +398,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             icon: Icons.info_outline_rounded,
                             iconColor: AppColors.purple,
                             label: 'About SoundShare',
-                            subtitle: 'Crafted by Anupam Pradhan • No Ads',
+                            subtitle: 'By Quick Media Solution',
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

@@ -5,23 +5,26 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
+import android.content.pm.PackageManager
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
-import android.media.AudioFormat
 import android.media.AudioManager
-import android.media.AudioTrack
+import android.media.projection.MediaProjectionConfig
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
-import kotlin.concurrent.thread
-import kotlin.math.sin
 
 class MainActivity : FlutterActivity() {
 
@@ -41,10 +44,17 @@ class MainActivity : FlutterActivity() {
     private var audioDeviceCallback: AudioDeviceCallback? = null
     private var a2dpProfile: BluetoothA2dp? = null
 
-    // Native audio playback engine for real multi-headphone audio streaming
-    private val audioTracks = mutableListOf<AudioTrack>()
-    private var isPlayingAudio = false
-    private var playbackThread: Thread? = null
+    // Playback capture for Wi-Fi sharing: PCM goes to Dart over this channel
+    private val pcmChannel = "com.soundshare/pcm"
+    private var pcmSink: EventChannel.EventSink? = null
+    private var pendingCaptureResult: MethodChannel.Result? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private companion object {
+        const val TAG = "SoundShare"
+        const val REQUEST_CAPTURE_CONSENT = 4101
+        const val REQUEST_RECORD_AUDIO = 4102
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -98,6 +108,19 @@ class MainActivity : FlutterActivity() {
                 }
             })
 
+        // Captured audio (raw 16-bit stereo PCM chunks)
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, pcmChannel)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    pcmSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    pcmSink = null
+                }
+            })
+        AudioShareForegroundService.callbacks = captureCallbacks
+
         // Core Audio Method Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, audioChannel)
             .setMethodCallHandler { call, result ->
@@ -119,22 +142,23 @@ class MainActivity : FlutterActivity() {
                         AudioShareForegroundService.stopService(this)
                         result.success(true)
                     }
-                    "startAudioPlayback" -> {
-                        startNativeAudioPlayback()
-                        result.success(true)
+                    "startCapture" -> {
+                        startCapture(result)
                     }
-                    "stopAudioPlayback" -> {
-                        stopNativeAudioPlayback()
+                    "stopCapture" -> {
+                        AudioShareForegroundService.stopService(this)
                         result.success(true)
                     }
                     "setDeviceVolume" -> {
-                        val address = call.argument<String>("address") ?: ""
                         val volume = call.argument<Double>("volume") ?: 1.0
-                        setDeviceVolume(address, volume.toFloat())
+                        setMediaVolume(volume.toFloat())
                         result.success(true)
                     }
                     "isAudioPlaying" -> {
-                        result.success(isPlayingAudio)
+                        result.success(
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                PlaybackCaptureEngine.isRunning
+                        )
                     }
                     "openBluetoothSettings" -> {
                         result.success(openBluetoothSettings())
@@ -480,182 +504,127 @@ class MainActivity : FlutterActivity() {
         return devices
     }
 
-    /**
-     * Real native audio playback engine using AudioTrack.
-     * Generates a stereo harmonic soundscape so when "Share Audio" is active,
-     * actual audio streams continuously through connected Bluetooth outputs.
-     */
-    private fun startNativeAudioPlayback() {
-        if (isPlayingAudio) return
-        isPlayingAudio = true
+    // ──────────────────────────────────────────────
+    // Playback capture (Wi-Fi sharing)
+    // ──────────────────────────────────────────────
 
-        playbackThread = thread(start = true, isDaemon = true, name = "SoundShareAudioPlayback") {
-            val sampleRate = 44100
-            val channelConfig = AudioFormat.CHANNEL_OUT_STEREO
-            val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-            val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-            val bufferSize = (minBufferSize * 2).coerceAtLeast(4096)
-
-            try {
-                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                if (currentVol == 0 && maxVol > 0) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (maxVol * 0.6).toInt(), 0)
+    private val captureCallbacks = object : AudioShareForegroundService.CaptureCallbacks {
+        override fun onCaptureStarted(sampleRate: Int) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                PlaybackCaptureEngine.listener = PlaybackCaptureEngine.Listener { chunk, _ ->
+                    // EventSink must be used on the main thread
+                    mainHandler.post { pcmSink?.success(chunk) }
                 }
+            }
+            completeCapture(mapOf("ok" to true, "sampleRate" to sampleRate))
+        }
 
-                val btOutputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
-                        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                        it.type == 26 || it.type == 27 || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    }
-                } else emptyList()
+        // The PCM stream itself reports the end, so Dart needs only one subscription
+        override fun onCaptureStopped() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) PlaybackCaptureEngine.listener = null
+            pcmSink?.endOfStream()
+        }
 
-                // Multi-headphone routing: Create dedicated AudioTrack per Bluetooth device
-                if (btOutputs.isNotEmpty()) {
-                    for (dev in btOutputs) {
-                        try {
-                            val track = AudioTrack.Builder()
-                                .setAudioAttributes(
-                                    AudioAttributes.Builder()
-                                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                        .build()
-                                )
-                                .setAudioFormat(
-                                    AudioFormat.Builder()
-                                        .setEncoding(audioFormat)
-                                        .setSampleRate(sampleRate)
-                                        .setChannelMask(channelConfig)
-                                        .build()
-                                )
-                                .setBufferSizeInBytes(bufferSize)
-                                .setTransferMode(AudioTrack.MODE_STREAM)
-                                .build()
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                track.preferredDevice = dev
-                            }
-                            track.play()
-                            audioTracks.add(track)
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                // Fallback default track if no specific BT tracks were created
-                if (audioTracks.isEmpty()) {
-                    try {
-                        val defaultTrack = AudioTrack.Builder()
-                            .setAudioAttributes(
-                                AudioAttributes.Builder()
-                                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                    .build()
-                            )
-                            .setAudioFormat(
-                                AudioFormat.Builder()
-                                    .setEncoding(audioFormat)
-                                    .setSampleRate(sampleRate)
-                                    .setChannelMask(channelConfig)
-                                    .build()
-                            )
-                            .setBufferSizeInBytes(bufferSize)
-                            .setTransferMode(AudioTrack.MODE_STREAM)
-                            .build()
-                        defaultTrack.play()
-                        audioTracks.add(defaultTrack)
-                    } catch (_: Exception) {}
-                }
-
-                val buffer = ShortArray(bufferSize / 2)
-                var phaseL = 0.0
-                var phaseR = 0.0
-                var sampleIndex = 0L
-
-                while (isPlayingAudio) {
-                    val timeSec = sampleIndex.toDouble() / sampleRate
-                    // Harmonic pulsing chord: Root (220Hz / A3), Fifth (330Hz / E4), Octave (440Hz / A4)
-                    val beatPulse = (sin(2.0 * Math.PI * 1.5 * timeSec) * 0.5 + 0.5) // 1.5 Hz pulse
-                    val freqL = 220.0
-                    val freqR = 330.0
-
-                    for (i in 0 until buffer.size step 2) {
-                        phaseL += 2.0 * Math.PI * freqL / sampleRate
-                        phaseR += 2.0 * Math.PI * freqR / sampleRate
-                        if (phaseL > 2.0 * Math.PI) phaseL -= 2.0 * Math.PI
-                        if (phaseR > 2.0 * Math.PI) phaseR -= 2.0 * Math.PI
-
-                        val amp = 0.45 * (0.6 + 0.4 * beatPulse)
-                        val sampleL = (sin(phaseL) * amp * Short.MAX_VALUE).toInt().toShort()
-                        val sampleR = (sin(phaseR) * amp * Short.MAX_VALUE).toInt().toShort()
-
-                        buffer[i] = sampleL
-                        buffer[i + 1] = sampleR
-                    }
-                    sampleIndex += buffer.size / 2
-
-                    // Stream to all connected headphone tracks synchronously
-                    for (t in audioTracks) {
-                        try {
-                            t.write(buffer, 0, buffer.size)
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                for (t in audioTracks) {
-                    try {
-                        t.stop()
-                        t.release()
-                    } catch (_: Exception) {}
-                }
-                audioTracks.clear()
-            } catch (_: Exception) {
-            } finally {
-                audioTracks.clear()
-                isPlayingAudio = false
+        override fun onCaptureFailed(reason: String) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) PlaybackCaptureEngine.listener = null
+            if (!completeCapture(mapOf("ok" to false, "reason" to reason))) {
+                pcmSink?.error("capture_failed", reason, null)
             }
         }
     }
 
-    private fun setDeviceVolume(address: String, volume: Float) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            var matched = false
-            audioTracks.forEach { track ->
-                val trackAddr = track.preferredDevice?.address ?: ""
-                val trackName = track.preferredDevice?.productName?.toString() ?: ""
-                if ((trackAddr.isNotEmpty() && trackAddr.equals(address, ignoreCase = true)) ||
-                    (trackName.isNotEmpty() && trackName.equals(address, ignoreCase = true))) {
-                    try {
-                        track.setVolume(volume.coerceIn(0f, 1f))
-                        matched = true
-                    } catch (_: Exception) {}
-                }
-            }
-            // If no specific track matched or single device fallback, apply to all active tracks
-            if (!matched) {
-                audioTracks.forEach { track ->
-                    try {
-                        track.setVolume(volume.coerceIn(0f, 1f))
-                    } catch (_: Exception) {}
-                }
-            }
+    /** Replies to a pending startCapture call; false when none was waiting. */
+    private fun completeCapture(reply: Map<String, Any>): Boolean {
+        val pending = pendingCaptureResult ?: return false
+        pendingCaptureResult = null
+        pending.success(reply)
+        return true
+    }
+
+    /** Asks for microphone-class permission, then Android's screen-audio consent. */
+    private fun startCapture(result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            result.success(mapOf("ok" to false, "reason" to "Wi-Fi sharing needs Android 10 or newer."))
+            return
+        }
+        if (pendingCaptureResult != null) {
+            result.success(mapOf("ok" to false, "reason" to "Already starting."))
+            return
+        }
+        pendingCaptureResult = result
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
+            return
+        }
+        requestCaptureConsent()
+    }
+
+    private fun requestCaptureConsent() {
+        val mpm = getSystemService(MediaProjectionManager::class.java)
+        if (mpm == null) {
+            completeCapture(mapOf("ok" to false, "reason" to "Audio capture is not available on this phone."))
+            return
+        }
+        // Android 14+: offer only "entire screen"; the single-app mode cannot capture audio
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            mpm.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+        } else {
+            mpm.createScreenCaptureIntent()
+        }
+        try {
+            startActivityForResult(intent, REQUEST_CAPTURE_CONSENT)
+        } catch (e: Exception) {
+            Log.e(TAG, "Capture consent dialog failed", e)
+            completeCapture(mapOf("ok" to false, "reason" to "Could not open Android's sharing dialog."))
         }
     }
 
-    private fun stopNativeAudioPlayback() {
-        isPlayingAudio = false
-        playbackThread?.interrupt()
-        playbackThread = null
-        for (t in audioTracks) {
-            try {
-                t.stop()
-                t.release()
-            } catch (_: Exception) {}
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_RECORD_AUDIO) return
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            requestCaptureConsent()
+        } else {
+            completeCapture(
+                mapOf("ok" to false, "reason" to "Allow audio access so SoundShare can share what's playing.")
+            )
         }
-        audioTracks.clear()
+    }
+
+    @Deprecated("Activity result API is not used by FlutterActivity")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_CAPTURE_CONSENT) return
+        if (resultCode != Activity.RESULT_OK || data == null) {
+            completeCapture(mapOf("ok" to false, "reason" to "Sharing was cancelled."))
+            return
+        }
+        // The service replies through captureCallbacks
+        AudioShareForegroundService.startCapture(this, resultCode, data)
+    }
+
+    private fun setMediaVolume(volume: Float) {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        try {
+            audioManager.setStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                (volume.coerceIn(0f, 1f) * max).toInt(),
+                0
+            )
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Volume change blocked (Do Not Disturb): ${e.message}")
+        }
     }
 
     override fun onDestroy() {
-        stopNativeAudioPlayback()
+        // The Wi-Fi server lives in this Flutter engine, so capture ends with it
+        if (AudioShareForegroundService.callbacks === captureCallbacks) {
+            AudioShareForegroundService.callbacks = null
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) PlaybackCaptureEngine.listener = null
+        AudioShareForegroundService.stopService(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && audioDeviceCallback != null) {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
