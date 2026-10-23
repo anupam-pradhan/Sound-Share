@@ -15,7 +15,8 @@ class AudioModeSelectorCard extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final capability = capabilityAsync.valueOrNull;
-    final recommendedMode = capability?.recommendedMode ?? AudioSharingMode.universalPeerShare;
+    final recommendedMode =
+        capability?.recommendedMode ?? AudioSharingMode.universalPeerShare;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -29,8 +30,8 @@ class AudioModeSelectorCard extends ConsumerWidget {
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withOpacity(0.3)
-                : AppColors.purple.withOpacity(0.06),
+                ? Colors.black.withValues(alpha: 0.3)
+                : AppColors.purple.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -45,7 +46,7 @@ class AudioModeSelectorCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.purple.withOpacity(0.12),
+                  color: AppColors.purple.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -73,7 +74,9 @@ class AudioModeSelectorCard extends ConsumerWidget {
                           : 'Auto-adapts to your device',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? const Color(0xFF9CA3AF) : AppColors.textSecondary,
+                        color: isDark
+                            ? const Color(0xFF9CA3AF)
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -131,7 +134,8 @@ class AudioModeSelectorCard extends ConsumerWidget {
               color: isDark ? const Color(0xFF100E1C) : const Color(0xFFF6F5FD),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isDark ? const Color(0xFF26223B) : const Color(0xFFE8E5FA),
+                color:
+                    isDark ? const Color(0xFF26223B) : const Color(0xFFE8E5FA),
               ),
             ),
             child: Column(
@@ -155,11 +159,12 @@ class AudioModeSelectorCard extends ConsumerWidget {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: activeMode == recommendedMode
-                            ? const Color(0xFF12B76A).withOpacity(0.15)
-                            : AppColors.purple.withOpacity(0.12),
+                            ? const Color(0xFF12B76A).withValues(alpha: 0.15)
+                            : AppColors.purple.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -183,10 +188,11 @@ class AudioModeSelectorCard extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.4,
-                    color: isDark ? const Color(0xFFA09EAE) : AppColors.textSecondary,
+                    color: isDark
+                        ? const Color(0xFFA09EAE)
+                        : AppColors.textSecondary,
                   ),
                 ),
-
                 if (activeMode == AudioSharingMode.samsungDualAudio) ...[
                   const SizedBox(height: 10),
                   SizedBox(
@@ -194,17 +200,24 @@ class AudioModeSelectorCard extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         AppHaptics.light();
-                        ref.read(audioSharingServiceProvider).openMediaOutputSelector();
+                        ref
+                            .read(audioSharingServiceProvider)
+                            .openMediaOutputSelector();
                       },
-                      icon: const Icon(Icons.settings_suggest_rounded, size: 16),
+                      icon:
+                          const Icon(Icons.settings_suggest_rounded, size: 16),
                       label: const Text(
                         'Open Samsung Media Output / Dual Audio Panel',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.purpleLight,
-                        side: BorderSide(color: AppColors.purpleLight.withOpacity(0.5)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side: BorderSide(
+                            color:
+                                AppColors.purpleLight.withValues(alpha: 0.5)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                     ),
@@ -248,7 +261,7 @@ class AudioModeSelectorCard extends ConsumerWidget {
               color: isSelected
                   ? Colors.transparent
                   : (isRecommended
-                      ? const Color(0xFF12B76A).withOpacity(0.5)
+                      ? const Color(0xFF12B76A).withValues(alpha: 0.5)
                       : Colors.transparent),
               width: 1,
             ),
@@ -261,7 +274,9 @@ class AudioModeSelectorCard extends ConsumerWidget {
                 size: 18,
                 color: isSelected
                     ? Colors.white
-                    : (isDark ? const Color(0xFF9CA3AF) : AppColors.textSecondary),
+                    : (isDark
+                        ? const Color(0xFF9CA3AF)
+                        : AppColors.textSecondary),
               ),
               const SizedBox(height: 4),
               Text(
@@ -271,7 +286,9 @@ class AudioModeSelectorCard extends ConsumerWidget {
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
                       ? Colors.white
-                      : (isDark ? const Color(0xFFD1D5DB) : AppColors.textPrimary),
+                      : (isDark
+                          ? const Color(0xFFD1D5DB)
+                          : AppColors.textPrimary),
                 ),
               ),
             ],
@@ -292,11 +309,11 @@ class AudioModeSelectorCard extends ConsumerWidget {
   String _getModeDescription(AudioSharingMode mode) {
     return switch (mode) {
       AudioSharingMode.samsungDualAudio =>
-        'Plays audio directly from your Samsung phone to 2 connected Bluetooth headphones simultaneously using Samsung One UI Dual Audio.',
+        'Opens Samsung Dual Audio so your Galaxy phone plays to 2 connected Bluetooth headphones at once.',
       AudioSharingMode.auracastBroadcast =>
-        'Directly broadcasts high-efficiency LC3 audio to any nearby Auracast or Bluetooth LE Audio earbuds without requiring a second phone.',
+        'Opens your phone\'s Audio Sharing to play on two pairs of LE Audio earbuds (Android 15+ with supported earbuds).',
       AudioSharingMode.universalPeerShare =>
-        'Works on 100% of smartphones (Pixel, Motorola, Xiaomi, OnePlus, etc.). Streams in real time over local Wi-Fi / Hotspot with zero mobile data.',
+        'Friends on your Wi-Fi or hotspot listen in their phone or laptop browser — no app or mobile data needed. Sharing needs Android 10+ on this phone.',
     };
   }
 }

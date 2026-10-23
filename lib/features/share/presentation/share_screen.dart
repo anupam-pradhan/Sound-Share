@@ -712,7 +712,7 @@ class _PeerShareInviteBanner extends StatelessWidget {
                 Text(
                   isSharing
                       ? 'Tap to show QR code or share link'
-                      : 'Zero data • Works on 100% of phones',
+                      : 'No mobile data • Friends listen in any browser',
                   style: TextStyle(
                     fontSize: 11,
                     color: isDark

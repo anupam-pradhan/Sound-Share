@@ -103,7 +103,7 @@ class _RateAppDialogState extends State<RateAppDialog> {
             Text(
               _submitted
                   ? 'Opening Google Play Store to complete your review...'
-                  : 'Tap the stars to rate your audio sharing and BeatSync experience on Google Play.',
+                  : 'Tap the stars to rate your audio sharing experience on Google Play.',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium,
             ),

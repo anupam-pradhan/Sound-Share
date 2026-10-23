@@ -61,7 +61,7 @@ class PrivacyPolicySheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Privacy Policy', style: AppTextStyles.headingMedium),
-                    Text('SoundShare • 100% Privacy Focused',
+                    Text('SoundShare • Privacy & Data',
                         style: AppTextStyles.bodySmall),
                   ],
                 ),
@@ -96,14 +96,14 @@ class PrivacyPolicySheet extends StatelessWidget {
                         'Bluetooth permissions (BLUETOOTH_SCAN, BLUETOOTH_CONNECT, BLUETOOTH_ADVERTISE) are used exclusively on your device to locate, connect, and stream audio to nearby audio receivers.',
                   ),
                   _policySection(
-                    title: '3. Audio Processing (BeatSync)',
+                    title: '3. Wi-Fi Audio Sharing',
                     content:
-                        'When BeatSync is active, audio frequencies are analyzed entirely in volatile device memory (RAM) in real time to trigger synchronized vibration pulses. No audio is ever recorded, stored, or transmitted over the internet.',
+                        'When you share over Wi-Fi, Android asks you to allow screen-audio sharing. The sound playing on your phone is then streamed in memory, over your own Wi-Fi or hotspot, to the friends you invite. It is never recorded, stored, or sent to any server.',
                   ),
                   _policySection(
                     title: '4. Foreground Service & Notifications',
                     content:
-                        'Foreground media playback services are used to keep your audio stream and BeatSync haptics uninterrupted when switching applications or locking your screen.',
+                        'A foreground service with an ongoing notification keeps sharing running while you switch apps or lock your screen. You can stop it any time from the notification.',
                   ),
                   _policySection(
                     title: '5. Advertising',

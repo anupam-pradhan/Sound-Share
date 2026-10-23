@@ -116,7 +116,7 @@ class AboutSoundShareSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Built with passion as an independent solo project. SoundShare was created with a clear promise: 100% free, zero ads, and no recurring subscriptions.',
+                    'Made by Quick Media Solution. SoundShare is free to use — supported by ads, with no subscriptions and no paywalls.',
                     style: AppTextStyles.bodyMedium.copyWith(height: 1.45),
                   ),
                 ],

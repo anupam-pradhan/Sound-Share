@@ -21,7 +21,7 @@ enum AudioSharingState {
   error,
 }
 
-/// The three audio sharing modes supported across 100% of Android devices.
+/// The three ways SoundShare can share audio.
 enum AudioSharingMode {
   /// Direct 1-phone to 2-headphone Classic A2DP stream for Samsung One UI devices.
   samsungDualAudio,
@@ -29,7 +29,7 @@ enum AudioSharingMode {
   /// Next-Gen Bluetooth LE Audio / Auracast direct broadcast for Android 13+ & BT 5.2+.
   auracastBroadcast,
 
-  /// Universal Peer-to-Peer Wi-Fi / Hotspot Audio Sync (Works on 100% of all smartphones).
+  /// Wi-Fi / hotspot sharing: friends listen in a browser (sharing phone needs Android 10+).
   universalPeerShare,
 }
 
@@ -52,7 +52,7 @@ extension AudioSharingModeExtension on AudioSharingMode {
       case AudioSharingMode.auracastBroadcast:
         return 'Direct broadcast to LE Audio earbuds (Android 13+)';
       case AudioSharingMode.universalPeerShare:
-        return 'Share in real time with a friend via Wi-Fi/Hotspot (100% of phones)';
+        return 'Friends listen in their browser over Wi-Fi or hotspot';
     }
   }
 
@@ -63,7 +63,7 @@ extension AudioSharingModeExtension on AudioSharingMode {
       case AudioSharingMode.auracastBroadcast:
         return 'AURACAST LE';
       case AudioSharingMode.universalPeerShare:
-        return '100% UNIVERSAL';
+        return 'WI-FI SHARE';
     }
   }
 }

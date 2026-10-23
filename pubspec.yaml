@@ -14,7 +14,7 @@ dependencies:
   flutter_blue_plus: ^1.35.3
 
   # Permissions
-  permission_handler: ^13.0.2
+  permission_handler: ^12.0.1
 
   # State management
   flutter_riverpod: ^2.6.1
