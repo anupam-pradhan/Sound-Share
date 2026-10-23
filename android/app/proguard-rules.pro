@@ -19,3 +19,16 @@
 
 # Play Core deferred components suppression
 -dontwarn com.google.android.play.core.**
+
+# WorkManager (pulled in by Google Mobile Ads) builds its Room database by
+# reflection at app start. R8 stripped WorkDatabase_Impl, crashing launch with
+# "Failed to create an instance of androidx.work.impl.WorkDatabase".
+-keep class * extends androidx.room.RoomDatabase { <init>(...); }
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+-keep class androidx.work.impl.** { *; }
+-keep class androidx.startup.** { *; }
+
+# Google Mobile Ads / UMP and Firebase use reflection for adapters and init
+-keep class com.google.android.gms.ads.** { *; }
+-keep class com.google.android.ump.** { *; }
+-dontwarn com.google.android.gms.**
